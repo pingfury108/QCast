@@ -2,8 +2,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { loginSchema, type LoginFormData } from '../lib/validations/auth';
+import { useLogin } from '../hooks/useAuth';
 
 export default function LoginPage() {
+  const login = useLogin();
+
   const {
     register,
     handleSubmit,
@@ -16,8 +19,10 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log('登录数据:', data);
-    // TODO: 实现实际的登录逻辑
+    await login.mutateAsync({
+      email: data.email,
+      password: data.password,
+    });
   };
 
   return (
@@ -71,10 +76,10 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || login.isPending}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? '登录中...' : '登录'}
+            {isSubmitting || login.isPending ? '登录中...' : '登录'}
           </button>
           <p className="text-center text-sm text-muted-foreground">
             还没有账号？{' '}

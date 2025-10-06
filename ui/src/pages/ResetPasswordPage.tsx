@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useParams } from 'react-router-dom';
 import { resetPasswordSchema, type ResetPasswordFormData } from '../lib/validations/auth';
+import { useResetPassword } from '../hooks/useAuth';
 
 export default function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
@@ -13,15 +14,21 @@ export default function ResetPasswordPage() {
     resolver: zodResolver(resetPasswordSchema),
   });
 
+  const { mutate: resetPassword, isPending } = useResetPassword();
+
   const onSubmit = async (data: ResetPasswordFormData) => {
-    console.log('重置密码数据:', { ...data, token });
-    // TODO: 实现实际的重置密码逻辑
+    if (token) {
+      resetPassword({
+        token,
+        password: data.password,
+      });
+    }
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">🎵 QCast</h1>
+        <h1 className="text-3xl font-bold mb-2"> QCast</h1>
         <p className="text-muted-foreground">设置新密码</p>
       </div>
       <div className="bg-card rounded-lg border p-6">
@@ -56,10 +63,10 @@ export default function ResetPasswordPage() {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPending}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? '重置中...' : '重置密码'}
+            {isSubmitting || isPending ? '重置中...' : '重置密码'}
           </button>
         </form>
       </div>

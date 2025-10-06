@@ -37,7 +37,7 @@ export default function DashboardPage() {
           to="/dashboard/media"
           className="p-6 border rounded-lg hover:border-primary transition-colors"
         >
-          <div className="text-2xl mb-4">🎵</div>
+          <div className="text-2xl mb-4"></div>
           <h3 className="text-lg font-semibold mb-2">所有媒体</h3>
           <p className="text-sm text-muted-foreground">
             查看和管理所有媒体文件

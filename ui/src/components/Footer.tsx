@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
           <div className="flex items-center space-x-2">
-            <span className="text-lg">🎵</span>
+            <span className="text-lg"></span>
             <span className="font-semibold">QCast</span>
           </div>
           <div className="flex items-center space-x-6 text-sm text-muted-foreground">

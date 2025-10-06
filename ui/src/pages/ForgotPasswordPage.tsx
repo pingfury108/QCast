@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { forgotPasswordSchema, type ForgotPasswordFormData } from '../lib/validations/auth';
+import { useForgotPassword } from '../hooks/useAuth';
 
 export default function ForgotPasswordPage() {
   const {
@@ -12,15 +13,16 @@ export default function ForgotPasswordPage() {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
+  const { mutate: forgotPassword, isPending } = useForgotPassword();
+
   const onSubmit = async (data: ForgotPasswordFormData) => {
-    console.log('忘记密码数据:', data);
-    // TODO: 实现实际的忘记密码逻辑
+    forgotPassword({ email: data.email });
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">🎵 QCast</h1>
+        <h1 className="text-3xl font-bold mb-2"> QCast</h1>
         <p className="text-muted-foreground">重置密码</p>
       </div>
       <div className="bg-card rounded-lg border p-6">
@@ -43,10 +45,10 @@ export default function ForgotPasswordPage() {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPending}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? '发送中...' : '发送重置链接'}
+            {isSubmitting || isPending ? '发送中...' : '发送重置链接'}
           </button>
           <p className="text-center text-sm text-muted-foreground">
             <Link to="/login" className="text-primary hover:underline">

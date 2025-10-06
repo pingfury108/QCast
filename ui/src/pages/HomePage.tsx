@@ -16,7 +16,7 @@ export default function HomePage() {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            🎵 QCast
+             QCast
             <span className="block text-2xl md:text-3xl font-normal text-muted-foreground mt-2">
               音视频托管平台
             </span>

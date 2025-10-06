@@ -41,3 +41,8 @@ export function isAuthenticated(): boolean {
   const { isAuthenticated } = getStoredAuthState();
   return isAuthenticated;
 }
+
+// 获取 token
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}

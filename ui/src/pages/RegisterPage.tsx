@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { registerSchema, type RegisterFormData } from '../lib/validations/auth';
+import { useRegister } from '../hooks/useAuth';
 
 export default function RegisterPage() {
   const {
@@ -12,20 +13,32 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
+  const { mutate: registerUser, isPending } = useRegister();
+
   const onSubmit = async (data: RegisterFormData) => {
-    console.log('注册数据:', data);
-    // TODO: 实现实际的注册逻辑
+    // 转换表单数据以匹配 API 要求
+    const registerData = {
+      name: data.name,
+      email: data.email,
+      password: data.password,
+    };
+
+    registerUser(registerData);
+  };
+
+  const onError = (errors: any) => {
+    console.log('❌ 表单验证失败:', errors);
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">🎵 QCast</h1>
+        <h1 className="text-3xl font-bold mb-2"> QCast</h1>
         <p className="text-muted-foreground">创建你的账号</p>
       </div>
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-xl font-semibold mb-6 text-center">注册</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-4">
           <div>
             <label className="text-sm font-medium mb-2 block">用户名</label>
             <input
@@ -79,10 +92,10 @@ export default function RegisterPage() {
           </div>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPending}
             className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? '注册中...' : '注册'}
+            {isSubmitting || isPending ? '注册中...' : '注册'}
           </button>
           <p className="text-center text-sm text-muted-foreground">
             已有账号？{' '}

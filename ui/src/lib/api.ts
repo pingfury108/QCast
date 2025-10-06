@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, clearAuthState } from './auth';
 
 // 创建 axios 实例
 const api = axios.create({
@@ -10,7 +11,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // 添加认证 token
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,9 +28,11 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // 处理认证错误
+    // 处理认证错误 - Loco 没有刷新令牌，直接跳转登录
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
+      // 清除本地存储的认证信息
+      clearAuthState();
+      // 跳转到登录页
       window.location.href = '/login';
     }
     return Promise.reject(error);

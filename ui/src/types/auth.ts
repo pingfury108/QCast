@@ -1,27 +1,40 @@
 export interface User {
-  id: number;
+  pid: string;
   name: string;
   email: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
-  remember?: boolean;
 }
 
 export interface LoginResponse {
   token: string;
-  user: User;
+  pid: string;
+  name: string;
+  is_verified: boolean;
 }
 
 export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
-  confirmPassword: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface CurrentUserResponse {
+  pid: string;
+  name: string;
+  email: string;
 }
 
 export interface AuthState {
