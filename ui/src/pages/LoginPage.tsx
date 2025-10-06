@@ -1,4 +1,25 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
+import { loginSchema, type LoginFormData } from '../lib/validations/auth';
+
 export default function LoginPage() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      remember: false,
+    },
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    console.log('登录数据:', data);
+    // TODO: 实现实际的登录逻辑
+  };
+
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="text-center mb-8">
@@ -7,35 +28,61 @@ export default function LoginPage() {
       </div>
       <div className="bg-card rounded-lg border p-6">
         <h2 className="text-xl font-semibold mb-6 text-center">登录</h2>
-        <p className="text-center text-muted-foreground mb-4">
-          登录功能将在后端认证 API 完成后实现
-        </p>
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="text-sm font-medium mb-2 block">邮箱</label>
             <input
               type="email"
-              className="w-full px-3 py-2 border rounded-md bg-background"
+              {...register('email')}
+              className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="your@email.com"
-              disabled
             />
+            {errors.email && (
+              <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium mb-2 block">密码</label>
             <input
               type="password"
-              className="w-full px-3 py-2 border rounded-md bg-background"
+              {...register('password')}
+              className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="••••••••"
-              disabled
             />
+            {errors.password && (
+              <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('remember')}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">记住我</span>
+            </label>
+            <Link
+              to="/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
+              忘记密码？
+            </Link>
           </div>
           <button
-            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium opacity-50 cursor-not-allowed"
-            disabled
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            登录
+            {isSubmitting ? '登录中...' : '登录'}
           </button>
-        </div>
+          <p className="text-center text-sm text-muted-foreground">
+            还没有账号？{' '}
+            <Link to="/register" className="text-primary hover:underline">
+              立即注册
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   );
