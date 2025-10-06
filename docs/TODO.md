@@ -33,14 +33,14 @@
 - [x] 创建注册页面（/register）
 - [x] 创建忘记密码页面（/forgot-password）
 - [x] 创建重置密码页面（/reset-password/:token）
-- [ ] 实现表单验证（React Hook Form + Zod）
+- [x] 实现表单验证（React Hook Form + Zod）
 
 ### 2.2 认证逻辑
-- [ ] 创建认证 API Service（login, register, forgot, reset）
-- [ ] 创建认证状态管理（TanStack Query）
+- [x] 创建认证 API Service（login, register, forgot, reset）
+- [x] 创建认证状态管理（TanStack Query）
 - [x] 实现 JWT Token 存储和管理
 - [x] 实现路由守卫（ProtectedRoute）
-- [ ] 实现自动登录（Token 刷新）
+- [x] 实现自动登录（Token 处理，适配 Loco 无刷新令牌机制）
 
 ---
 
