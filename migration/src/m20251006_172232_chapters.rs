@@ -12,11 +12,11 @@ impl MigrationTrait for Migration {
             "chapters",
             &[
                 ("id", ColType::PkAuto),
-                ("title", ColType::StringNull),
+                ("title", ColType::String),
                 ("description", ColType::TextNull),
                 ("sort_order", ColType::IntegerNull),
             ],
-            &[("book", "")],
+            &[("book_id", "books")],
         )
         .await
     }

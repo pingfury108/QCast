@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
 use crate::models::_entities::chapters::Model;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChapterResponse {
     pub id: i32,
-    pub title: Option<String>,
+    pub title: String,
     pub description: Option<String>,
     pub sort_order: Option<i32>,
     pub book_id: i32,

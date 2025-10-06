@@ -27,7 +27,7 @@ impl ActiveModelBehavior for ActiveModel {
             }
             // 生成访问令牌
             if this.access_token.is_unchanged() {
-                this.access_token = sea_orm::ActiveValue::Set(Some(Uuid::new_v4().to_string()));
+                this.access_token = sea_orm::ActiveValue::Set(Uuid::new_v4().to_string());
             }
         }
 

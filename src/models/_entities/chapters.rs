@@ -10,7 +10,7 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub title: Option<String>,
+    pub title: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
     pub sort_order: Option<i32>,
@@ -27,18 +27,10 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Books,
-    #[sea_orm(has_many = "super::medias::Entity")]
-    Medias,
 }
 
 impl Related<super::books::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Books.def()
-    }
-}
-
-impl Related<super::medias::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Medias.def()
     }
 }
