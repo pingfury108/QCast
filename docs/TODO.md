@@ -3,43 +3,43 @@
 ## Phase 1: 前端基础框架搭建
 
 ### 1.1 项目初始化
-- [ ] 创建 Vite + React + TypeScript 项目
-- [ ] 配置 Tailwind CSS
-- [ ] 初始化 shadcn/ui
-- [ ] 安装必要依赖（React Router、TanStack Query、Axios 等）
-- [ ] 配置 Vite 代理（开发环境指向后端 5150 端口）
-- [ ] 配置构建输出到 `../assets/static`
+- [x] 创建 Vite + React + TypeScript 项目
+- [x] 配置 Tailwind CSS
+- [x] 初始化 shadcn/ui
+- [x] 安装必要依赖（React Router、TanStack Query、Axios 等）
+- [x] 配置 Vite 代理（开发环境指向后端 5150 端口）
+- [x] 配置构建输出到 `../assets/static`
 
 ### 1.2 全局配置
-- [ ] 创建全局样式和主题配置
-- [ ] 配置 React Router 路由
-- [ ] 配置 TanStack Query Provider
-- [ ] 创建 Axios 实例和拦截器
-- [ ] 创建全局 Toast 组件
+- [x] 创建全局样式和主题配置
+- [x] 配置 React Router 路由
+- [x] 配置 TanStack Query Provider
+- [x] 创建 Axios 实例和拦截器
+- [x] 创建全局 Toast 组件
 
 ### 1.3 通用组件
-- [ ] 创建 Layout 组件（全局布局）
-- [ ] 创建 Header 组件（顶部导航栏）
-- [ ] 创建 Footer 组件
-- [ ] 创建 Loading 组件（Skeleton）
-- [ ] 创建 EmptyState 组件
+- [x] 创建 Layout 组件（全局布局）
+- [x] 创建 Header 组件（顶部导航栏）
+- [x] 创建 Footer 组件
+- [x] 创建 Loading 组件（Skeleton）
+- [x] 创建 EmptyState 组件
 
 ---
 
 ## Phase 2: 认证相关页面（基于 Loco 现有 API）
 
 ### 2.1 登录注册页面
-- [ ] 创建登录页面（/login）
-- [ ] 创建注册页面（/register）
-- [ ] 创建忘记密码页面（/forgot-password）
-- [ ] 创建重置密码页面（/reset-password/:token）
+- [x] 创建登录页面（/login）
+- [x] 创建注册页面（/register）
+- [x] 创建忘记密码页面（/forgot-password）
+- [x] 创建重置密码页面（/reset-password/:token）
 - [ ] 实现表单验证（React Hook Form + Zod）
 
 ### 2.2 认证逻辑
 - [ ] 创建认证 API Service（login, register, forgot, reset）
 - [ ] 创建认证状态管理（TanStack Query）
-- [ ] 实现 JWT Token 存储和管理
-- [ ] 实现路由守卫（ProtectedRoute）
+- [x] 实现 JWT Token 存储和管理
+- [x] 实现路由守卫（ProtectedRoute）
 - [ ] 实现自动登录（Token 刷新）
 
 ---
@@ -47,14 +47,14 @@
 ## Phase 3: 首页和基础页面
 
 ### 3.1 首页（Landing Page）
-- [ ] 创建首页布局（/）
-- [ ] 实现 Hero 区域（标题、Slogan、CTA）
-- [ ] 实现核心功能介绍区域
-- [ ] 实现使用场景展示
-- [ ] 实现工作流程说明
-- [ ] 实现特色功能展示
-- [ ] 添加响应式设计
-- [ ] 实现登录状态自动跳转
+- [x] 创建首页布局（/）
+- [x] 实现 Hero 区域（标题、Slogan、CTA）
+- [x] 实现核心功能介绍区域
+- [x] 实现使用场景展示
+- [x] 实现工作流程说明
+- [x] 实现特色功能展示
+- [x] 添加响应式设计
+- [x] 实现登录状态自动跳转
 
 ---
 
