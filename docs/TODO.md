@@ -61,26 +61,26 @@
 ## Phase 4: 后端 API 开发 - Books 模块
 
 ### 4.1 数据库 Migration
-- [ ] 创建 Books 表 Migration
-- [ ] 创建 Chapters 表 Migration
-- [ ] 创建 Media 表 Migration
-- [ ] 添加索引和外键约束
+- [x] 创建 Books 表 Migration
+- [x] 创建 Chapters 表 Migration
+- [x] 创建 Media 表 Migration
+- [x] 添加索引和外键约束
 
 ### 4.2 Books Model
-- [ ] 创建 Books Entity
-- [ ] 创建 Books Model 业务逻辑
-- [ ] 创建 Books View（响应格式）
-- [ ] 实现树形结构查询
+- [x] 创建 Books Entity
+- [x] 创建 Books Model 业务逻辑
+- [x] 创建 Books View（响应格式）
+- [x] 实现树形结构查询
 
 ### 4.3 Books Controller
-- [ ] 实现 POST /api/books（创建书籍）
-- [ ] 实现 GET /api/books（获取列表）
-- [ ] 实现 GET /api/books/search（搜索）
-- [ ] 实现 GET /api/books/:id（获取详情）
-- [ ] 实现 PUT /api/books/:id（更新）
-- [ ] 实现 DELETE /api/books/:id（删除）
-- [ ] 实现 GET /api/books/:id/tree（获取树形结构）
-- [ ] 实现 POST /api/books/:id/reorder（排序）
+- [x] 实现 POST /api/books（创建书籍）
+- [x] 实现 GET /api/books（获取列表）
+- [x] 实现 GET /api/books/search（搜索）
+- [x] 实现 GET /api/books/:id（获取详情）
+- [x] 实现 PUT /api/books/:id（更新）
+- [x] 实现 DELETE /api/books/:id（删除）
+- [x] 实现 GET /api/books/:id/tree（获取树形结构）
+- [x] 实现 POST /api/books/:id/reorder（排序）
 
 ---
 
