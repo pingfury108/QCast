@@ -4,32 +4,37 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "users")]
+#[sea_orm(table_name = "chapters")]
 pub struct Model {
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub pid: Uuid,
-    #[sea_orm(unique)]
-    pub email: String,
-    pub password: String,
-    #[sea_orm(unique)]
-    pub api_key: String,
-    pub name: String,
-    pub reset_token: Option<String>,
-    pub reset_sent_at: Option<DateTimeWithTimeZone>,
-    pub email_verification_token: Option<String>,
-    pub email_verification_sent_at: Option<DateTimeWithTimeZone>,
-    pub email_verified_at: Option<DateTimeWithTimeZone>,
-    pub magic_link_token: Option<String>,
-    pub magic_link_expiration: Option<DateTimeWithTimeZone>,
+    pub title: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub description: Option<String>,
+    pub sort_order: Option<i32>,
+    pub book_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::books::Entity",
+        from = "Column::BookId",
+        to = "super::books::Column::Id",
+        on_update = "Cascade",
+        on_delete = "Cascade"
+    )]
+    Books,
     #[sea_orm(has_many = "super::medias::Entity")]
     Medias,
+}
+
+impl Related<super::books::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Books.def()
+    }
 }
 
 impl Related<super::medias::Entity> for Entity {
