@@ -38,7 +38,7 @@ pub struct ReorderParams {
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     let item = Entity::find_by_id(id)
-        .filter(Column::UserIdId.eq(user_id))
+        .filter(Column::UserId.eq(user_id))
         .one(&ctx.db)
         .await?;
     item.ok_or_else(|| Error::NotFound)
@@ -50,7 +50,7 @@ pub async fn list(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Resp
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
     let books = Entity::find()
-        .filter(Column::UserIdId.eq(user.id))
+        .filter(Column::UserId.eq(user.id))
         .all(&ctx.db)
         .await?;
 
@@ -69,7 +69,7 @@ pub async fn create(
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
     let item = ActiveModel {
-        user_id_id: Set(user.id),
+        user_id: Set(user.id),
         title: Set(params.title),
         description: Set(params.description),
         cover_image: Set(params.cover_image),

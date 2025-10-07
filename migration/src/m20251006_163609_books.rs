@@ -18,10 +18,13 @@ impl MigrationTrait for Migration {
                 ("parent_id", ColType::IntegerNull),
                 ("sort_order", ColType::IntegerNull),
                 ("is_public", ColType::BooleanNull),
+                ("user_id", ColType::Integer),
             ],
-            &[("user_id", "users")],
+            &[],
         )
-        .await
+        .await?;
+
+        Ok(())
     }
 
     async fn down(&self, m: &SchemaManager) -> Result<(), DbErr> {

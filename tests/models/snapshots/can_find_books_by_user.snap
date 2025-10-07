@@ -1,0 +1,18 @@
+---
+source: tests/models/books.rs
+expression: user1_books
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "用户1的书",
+        description: None,
+        cover_image: None,
+        parent_id: None,
+        sort_order: None,
+        is_public: None,
+        user_id: ID
+    },
+]

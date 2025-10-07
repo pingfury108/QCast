@@ -1,0 +1,18 @@
+---
+source: tests/models/books.rs
+expression: updated_book
+---
+Model {
+    created_at: DATE,
+    updated_at: DATE,
+    id: ID
+    title: "更新后的标题",
+    description: Some(
+        "更新后的描述",
+    ),
+    cover_image: None,
+    parent_id: None,
+    sort_order: None,
+    is_public: None,
+    user_id: ID
+}

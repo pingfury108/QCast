@@ -36,7 +36,7 @@ impl Model {
     /// 获取用户的所有书籍
     pub async fn find_by_user(db: &DatabaseConnection, user_id: i32) -> Result<Vec<Model>, DbErr> {
         Entity::find()
-            .filter(Column::UserIdId.eq(user_id))
+            .filter(Column::UserId.eq(user_id))
             .all(db)
             .await
     }
@@ -47,7 +47,7 @@ impl Model {
         user_id: i32,
     ) -> Result<Vec<Model>, DbErr> {
         Entity::find()
-            .filter(Column::UserIdId.eq(user_id))
+            .filter(Column::UserId.eq(user_id))
             .filter(Column::ParentId.is_null())
             .order_by_asc(Column::SortOrder)
             .order_by_asc(Column::CreatedAt)
@@ -75,7 +75,7 @@ impl Model {
         query: &str,
     ) -> Result<Vec<Model>, DbErr> {
         Entity::find()
-            .filter(Column::UserIdId.eq(user_id))
+            .filter(Column::UserId.eq(user_id))
             .filter(
                 Column::Title
                     .contains(query)

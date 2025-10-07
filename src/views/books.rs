@@ -26,7 +26,7 @@ impl From<Model> for BookResponse {
             parent_id: book.parent_id,
             sort_order: book.sort_order,
             is_public: book.is_public,
-            user_id: book.user_id_id,
+            user_id: book.user_id,
             created_at: book.created_at.into(),
             updated_at: book.updated_at.into(),
         }

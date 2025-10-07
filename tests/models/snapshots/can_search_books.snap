@@ -1,0 +1,20 @@
+---
+source: tests/models/books.rs
+expression: search_results
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "设计模式",
+        description: Some(
+            "软件设计模式详解",
+        ),
+        cover_image: None,
+        parent_id: None,
+        sort_order: None,
+        is_public: None,
+        user_id: ID
+    },
+]

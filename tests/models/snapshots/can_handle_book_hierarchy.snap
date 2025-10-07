@@ -1,0 +1,38 @@
+---
+source: tests/models/books.rs
+expression: children
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "第二级-第一章",
+        description: None,
+        cover_image: None,
+        parent_id: Some(
+            1,
+        ),
+        sort_order: Some(
+            1,
+        ),
+        is_public: None,
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "第二级-第二章",
+        description: None,
+        cover_image: None,
+        parent_id: Some(
+            1,
+        ),
+        sort_order: Some(
+            2,
+        ),
+        is_public: None,
+        user_id: ID
+    },
+]

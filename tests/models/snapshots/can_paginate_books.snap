@@ -1,0 +1,42 @@
+---
+source: tests/models/books.rs
+expression: page1_results
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "书籍 01",
+        description: None,
+        cover_image: None,
+        parent_id: None,
+        sort_order: None,
+        is_public: None,
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "书籍 02",
+        description: None,
+        cover_image: None,
+        parent_id: None,
+        sort_order: None,
+        is_public: None,
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "书籍 03",
+        description: None,
+        cover_image: None,
+        parent_id: None,
+        sort_order: None,
+        is_public: None,
+        user_id: ID
+    },
+]

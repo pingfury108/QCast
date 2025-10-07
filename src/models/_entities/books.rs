@@ -17,7 +17,7 @@ pub struct Model {
     pub parent_id: Option<i32>,
     pub sort_order: Option<i32>,
     pub is_public: Option<bool>,
-    pub user_id_id: i32,
+    pub user_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -28,7 +28,7 @@ pub enum Relation {
     Medias,
     #[sea_orm(
         belongs_to = "super::users::Entity",
-        from = "Column::UserIdId",
+        from = "Column::UserId",
         to = "super::users::Column::Id",
         on_update = "Cascade",
         on_delete = "Cascade"

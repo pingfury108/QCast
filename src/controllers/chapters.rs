@@ -41,7 +41,7 @@ async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     if let Some(ref chapter) = item {
         // 验证书籍是否属于当前用户
         let book = books::Entity::find_by_id(chapter.book_id)
-            .filter(books::Column::UserIdId.eq(user_id))
+            .filter(books::Column::UserId.eq(user_id))
             .one(&ctx.db)
             .await?;
 
@@ -64,7 +64,7 @@ pub async fn list(
 
     // 验证用户是否有权限访问该书籍
     let _book = books::Entity::find_by_id(book_id)
-        .filter(books::Column::UserIdId.eq(user.id))
+        .filter(books::Column::UserId.eq(user.id))
         .one(&ctx.db)
         .await?
         .ok_or_else(|| Error::NotFound)?;
@@ -87,7 +87,7 @@ pub async fn create(
 
     // 验证用户是否有权限访问该书籍
     let _book = books::Entity::find_by_id(book_id)
-        .filter(books::Column::UserIdId.eq(user.id))
+        .filter(books::Column::UserId.eq(user.id))
         .one(&ctx.db)
         .await?
         .ok_or_else(|| Error::NotFound)?;
@@ -199,7 +199,7 @@ pub async fn batch_reorder(
 
     // 验证用户是否有权限访问该书籍
     let _book = books::Entity::find_by_id(book_id)
-        .filter(books::Column::UserIdId.eq(user.id))
+        .filter(books::Column::UserId.eq(user.id))
         .one(&ctx.db)
         .await?
         .ok_or_else(|| Error::NotFound)?;

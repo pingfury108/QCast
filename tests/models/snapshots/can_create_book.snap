@@ -1,0 +1,18 @@
+---
+source: tests/models/books.rs
+expression: created_book
+---
+Model {
+    created_at: DATE,
+    updated_at: DATE,
+    id: ID
+    title: "测试书籍",
+    description: Some(
+        "这是一本测试书籍",
+    ),
+    cover_image: None,
+    parent_id: None,
+    sort_order: None,
+    is_public: None,
+    user_id: ID
+}
