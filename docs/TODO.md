@@ -87,40 +87,40 @@
 ## Phase 5: 前端 Books 功能
 
 ### 5.1 Books API Service
-- [ ] 创建 Books API Service（所有接口封装）
-- [ ] 创建 Books TanStack Query Hooks
+- [x] 创建 Books API Service（所有接口封装）
+- [x] 创建 Books TanStack Query Hooks
 
 ### 5.2 Books 页面
-- [ ] 创建 Dashboard 布局（带导航栏）
-- [ ] 创建书籍列表页（/dashboard/books）
-- [ ] 实现树形列表展示
-- [ ] 实现新建书籍对话框
-- [ ] 实现编辑书籍功能
-- [ ] 实现删除书籍确认
-- [ ] 实现拖拽排序
+- [x] 创建 Dashboard 布局（带导航栏）
+- [x] 创建书籍列表页（/dashboard/books）
+- [x] 实现树形列表展示
+- [x] 实现新建书籍对话框
+- [x] 实现编辑书籍功能
+- [x] 实现删除书籍确认
+- [x] 实现拖拽排序
 
 ### 5.3 Book 详情页
-- [ ] 创建 Book 详情页（/dashboard/books/:id）
-- [ ] 实现 Tab 切换（媒体/章节/设置）
-- [ ] 实现媒体列表展示
-- [ ] 实现返回列表功能
+- [x] 创建 Book 详情页（/dashboard/books/:id）
+- [x] 实现 Tab 切换（媒体/章节/设置）
+- [x] 实现媒体列表展示
+- [x] 实现返回列表功能
 
 ---
 
 ## Phase 6: 后端 Chapters 模块
 
 ### 6.1 Chapters Model
-- [ ] 创建 Chapters Entity
-- [ ] 创建 Chapters Model 业务逻辑
-- [ ] 创建 Chapters View
+- [x] 创建 Chapters Entity
+- [x] 创建 Chapters Model 业务逻辑
+- [x] 创建 Chapters View
 
 ### 6.2 Chapters Controller
-- [ ] 实现 POST /api/books/:book_id/chapters（创建章节）
-- [ ] 实现 GET /api/books/:book_id/chapters（获取列表）
-- [ ] 实现 GET /api/chapters/:id（获取详情）
-- [ ] 实现 PUT /api/chapters/:id（更新）
-- [ ] 实现 DELETE /api/chapters/:id（删除）
-- [ ] 实现 POST /api/chapters/:id/reorder（排序）
+- [x] 实现 POST /api/books/:book_id/chapters（创建章节）
+- [x] 实现 GET /api/books/:book_id/chapters（获取列表）
+- [x] 实现 GET /api/chapters/:id（获取详情）
+- [x] 实现 PUT /api/chapters/:id（更新）
+- [x] 实现 DELETE /api/chapters/:id（删除）
+- [x] 实现 POST /api/chapters/:id/reorder（排序）
 
 ---
 
