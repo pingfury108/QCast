@@ -2,7 +2,6 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
-use axum::http::StatusCode;
 use axum::routing::method_routing::delete as axum_delete;
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};

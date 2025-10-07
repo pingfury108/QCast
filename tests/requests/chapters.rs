@@ -439,7 +439,7 @@ async fn can_move_chapter_up() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建多个章节
-        let chapter1 =
+        let _chapter1 =
             create_test_chapter(&request, book.id, &auth_header, "Chapter 1", None).await;
         let chapter2 =
             create_test_chapter(&request, book.id, &auth_header, "Chapter 2", None).await;
@@ -500,7 +500,7 @@ async fn can_move_chapter_down() {
         // 创建多个章节
         let chapter1 =
             create_test_chapter(&request, book.id, &auth_header, "Chapter 1", None).await;
-        let chapter2 =
+        let _chapter2 =
             create_test_chapter(&request, book.id, &auth_header, "Chapter 2", None).await;
 
         // 尝试将 chapter1 下移
