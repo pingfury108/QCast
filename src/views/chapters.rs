@@ -20,8 +20,8 @@ impl From<Model> for ChapterResponse {
             description: chapter.description,
             sort_order: chapter.sort_order,
             book_id: chapter.book_id,
-            created_at: chapter.created_at.into(),
-            updated_at: chapter.updated_at.into(),
+            created_at: chapter.created_at.naive_utc().and_utc(),
+            updated_at: chapter.updated_at.naive_utc().and_utc(),
         }
     }
 }

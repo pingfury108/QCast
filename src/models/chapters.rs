@@ -73,7 +73,7 @@ impl Model {
             .one(db)
             .await?;
 
-        Ok(max_order.flatten().unwrap_or(-1) + 1)
+        Ok(max_order.flatten().unwrap_or(0) + 1)
     }
 
     /// 重新排序书籍的所有章节
@@ -94,7 +94,7 @@ impl Model {
                 }
 
                 let mut active_chapter = chapter.into_active_model();
-                active_chapter.sort_order = Set(Some(new_order as i32));
+                active_chapter.sort_order = Set(Some((new_order + 1) as i32));
                 active_chapter.update(&txn).await?;
             } else {
                 txn.rollback().await?;

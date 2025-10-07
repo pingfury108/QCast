@@ -2,6 +2,7 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
+use axum::http::StatusCode;
 use axum::routing::method_routing::delete as axum_delete;
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -118,7 +119,7 @@ pub async fn create(
 #[debug_handler]
 pub async fn show(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
@@ -131,7 +132,7 @@ pub async fn show(
 #[debug_handler]
 pub async fn update(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
     Json(params): Json<UpdateParams>,
 ) -> Result<Response> {
@@ -159,7 +160,7 @@ pub async fn update(
 #[debug_handler]
 pub async fn delete(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
@@ -173,7 +174,7 @@ pub async fn delete(
 #[debug_handler]
 pub async fn reorder(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
     Json(params): Json<ReorderParams>,
 ) -> Result<Response> {
@@ -216,7 +217,7 @@ pub async fn batch_reorder(
 #[debug_handler]
 pub async fn move_up(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
@@ -236,7 +237,7 @@ pub async fn move_up(
 #[debug_handler]
 pub async fn move_down(
     auth: auth::JWT,
-    Path(id): Path<i32>,
+    Path((_book_id, id)): Path<(i32, i32)>,
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
@@ -256,15 +257,15 @@ pub async fn move_down(
 
 pub fn routes() -> Routes {
     Routes::new()
-        .prefix("api/books/{book_id}/chapters/")
-        .add("/", get(list))
-        .add("/", post(create))
-        .add("/batch-reorder", post(batch_reorder))
-        .add("/{id}", get(show))
-        .add("/{id}", put(update))
-        .add("/{id}", patch(update))
-        .add("/{id}", axum_delete(delete))
-        .add("/{id}/reorder", post(reorder))
-        .add("/{id}/move-up", post(move_up))
-        .add("/{id}/move-down", post(move_down))
+        .prefix("/api/books")
+        .add("/{book_id}/chapters", get(list))
+        .add("/{book_id}/chapters", post(create))
+        .add("/{book_id}/chapters/batch-reorder", post(batch_reorder))
+        .add("/{book_id}/chapters/{id}", get(show))
+        .add("/{book_id}/chapters/{id}", put(update))
+        .add("/{book_id}/chapters/{id}", patch(update))
+        .add("/{book_id}/chapters/{id}", axum_delete(delete))
+        .add("/{book_id}/chapters/{id}/reorder", post(reorder))
+        .add("/{book_id}/chapters/{id}/move-up", post(move_up))
+        .add("/{book_id}/chapters/{id}/move-down", post(move_down))
 }

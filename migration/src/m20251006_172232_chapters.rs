@@ -15,8 +15,9 @@ impl MigrationTrait for Migration {
                 ("title", ColType::String),
                 ("description", ColType::TextNull),
                 ("sort_order", ColType::IntegerNull),
+                ("book_id", ColType::Integer),
             ],
-            &[("book_id", "books")],
+            &[],
         )
         .await
     }

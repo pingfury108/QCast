@@ -1,8 +1,8 @@
 use insta::{assert_debug_snapshot, with_settings};
 use loco_rs::testing::prelude::*;
 use qcast::app::App;
-use serial_test::serial;
 use serde_json::json;
+use serial_test::serial;
 
 use super::prepare_data::{auth_header, init_user_login};
 
@@ -221,8 +221,7 @@ async fn can_delete_book() {
             .await;
 
         let response_text = create_response.text();
-        let created_book: serde_json::Value =
-            serde_json::from_str(&response_text).unwrap();
+        let created_book: serde_json::Value = serde_json::from_str(&response_text).unwrap();
         let book_id = created_book["id"].as_i64().unwrap();
 
         // 删除书籍

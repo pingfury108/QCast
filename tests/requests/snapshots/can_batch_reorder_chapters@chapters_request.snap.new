@@ -1,0 +1,34 @@
+---
+source: tests/requests/chapters.rs
+assertion_line: 383
+expression: chapters
+---
+[
+    Object {
+        "book_id": Number(1),
+        "created_at": String("2025-10-07T17:12:28Z"),
+        "description": Null,
+        "id": Number(3),
+        "sort_order": Number(1),
+        "title": String("Chapter 3"),
+        "updated_at": String("2025-10-07T17:12:28.634877Z"),
+    },
+    Object {
+        "book_id": Number(1),
+        "created_at": String("2025-10-07T17:12:28Z"),
+        "description": Null,
+        "id": Number(1),
+        "sort_order": Number(2),
+        "title": String("Chapter 1"),
+        "updated_at": String("2025-10-07T17:12:28.635260Z"),
+    },
+    Object {
+        "book_id": Number(1),
+        "created_at": String("2025-10-07T17:12:28Z"),
+        "description": Null,
+        "id": Number(2),
+        "sort_order": Number(3),
+        "title": String("Chapter 2"),
+        "updated_at": String("2025-10-07T17:12:28.635566Z"),
+    },
+]

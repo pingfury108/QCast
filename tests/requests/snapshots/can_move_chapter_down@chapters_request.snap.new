@@ -1,0 +1,14 @@
+---
+source: tests/requests/chapters.rs
+assertion_line: 472
+expression: moved_chapter
+---
+Object {
+    "book_id": Number(1),
+    "created_at": String("2025-10-07T17:12:30Z"),
+    "description": Null,
+    "id": Number(1),
+    "sort_order": Number(2),
+    "title": String("Chapter 1"),
+    "updated_at": String("2025-10-07T17:12:30.823017Z"),
+}

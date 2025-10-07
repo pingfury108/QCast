@@ -1,0 +1,14 @@
+---
+source: tests/requests/chapters.rs
+assertion_line: 267
+expression: updated_chapter
+---
+Object {
+    "book_id": Number(1),
+    "created_at": String("2025-10-07T17:12:33Z"),
+    "description": String("Updated Description"),
+    "id": Number(1),
+    "sort_order": Number(10),
+    "title": String("Updated Title"),
+    "updated_at": String("2025-10-07T17:12:33.893567Z"),
+}
