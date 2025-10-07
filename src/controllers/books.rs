@@ -206,7 +206,7 @@ pub async fn reorder(
 
 pub fn routes() -> Routes {
     Routes::new()
-        .prefix("api/books/")
+        .prefix("/api/books")
         .add("/", get(list))
         .add("/", post(create))
         .add("/search", get(search))
