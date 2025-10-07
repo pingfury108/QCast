@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as authService from '../services/auth';
-import { saveAuthState, clearAuthState } from '../lib/auth';
+import { saveAuthState, clearAuthState, getStoredAuthState } from '../lib/auth';
 import type { LoginRequest, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, User } from '../types/auth';
 
 // 登录
@@ -12,18 +12,27 @@ export function useLogin() {
   return useMutation({
     mutationFn: authService.login,
     onSuccess: (data) => {
-      // 保存认证信息
+      console.log('登录成功，响应数据:', data);
+
+      // 直接使用登录接口返回的信息
       const user: User = {
         pid: data.pid,
         name: data.name,
-        email: '', // 登录接口不返回 email，之后从 current 接口获取
+        email: data.email || '', // 如果登录接口返回了邮箱就使用，否则为空
       };
+
+      // 保存认证信息
       saveAuthState(data.token, user);
+      console.log('认证信息已保存:', { token: data.token.substring(0, 20) + '...', user });
 
       toast.success('登录成功！');
+
+      // 直接跳转，不使用延迟
+      console.log('开始跳转到 dashboard...');
       navigate('/dashboard');
     },
     onError: (error: any) => {
+      console.error('登录失败:', error);
       const message = error.response?.data?.message || '登录失败，请检查邮箱和密码';
       toast.error(message);
     },
@@ -78,16 +87,6 @@ export function useResetPassword() {
   });
 }
 
-// 获取当前用户
-export function useCurrentUser() {
-  return useQuery({
-    queryKey: ['currentUser'],
-    queryFn: authService.getCurrentUser,
-    retry: false,
-    staleTime: 5 * 60 * 1000, // 5 分钟
-  });
-}
-
 // 登出
 export function useLogout() {
   const navigate = useNavigate();
@@ -101,34 +100,73 @@ export function useLogout() {
 
 // 自动认证检查（在应用启动时调用）- 适用于 Loco 框架（无刷新令牌）
 export function useAutoAuth() {
-  const navigate = useNavigate();
-
   return useQuery({
     queryKey: ['autoAuth'],
     queryFn: async () => {
       const token = localStorage.getItem('qcast_token');
+      const storedUser = localStorage.getItem('qcast_user');
 
       if (!token) {
         // 没有 token，直接返回未认证状态
         return { isAuthenticated: false };
       }
 
-      try {
-        // 尝试获取当前用户信息
-        const user = await authService.getCurrentUser();
+      // 从本地存储获取用户信息
+      let user = null;
+      if (storedUser) {
+        try {
+          user = JSON.parse(storedUser);
+        } catch {
+          // 解析失败，清除无效数据
+          clearAuthState();
+          return { isAuthenticated: false };
+        }
+      }
+
+      // 如果有基本用户信息，直接返回认证状态
+      if (user && user.pid && user.name) {
         return { isAuthenticated: true, user };
+      }
+
+      // 如果没有有效的用户信息，清除认证状态
+      clearAuthState();
+      return { isAuthenticated: false };
+    },
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+// 获取完整用户信息的 hook（在后台异步调用）
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      try {
+        const currentUser = await authService.getCurrentUser();
+        console.log('获取到完整用户信息:', currentUser);
+
+        // 更新本地存储的用户信息
+        const user = {
+          pid: currentUser.pid,
+          name: currentUser.name,
+          email: currentUser.email,
+        };
+
+        const { user: storedUser } = getStoredAuthState();
+        if (storedUser && storedUser.pid === user.pid) {
+          // 只有当 PID 匹配时才更新
+          localStorage.setItem('qcast_user', JSON.stringify(user));
+        }
+
+        return currentUser;
       } catch (error) {
-        // token 无效，清除认证信息
-        clearAuthState();
-        return { isAuthenticated: false };
+        console.error('获取用户信息失败:', error);
+        return null;
       }
     },
-    staleTime: Infinity, // 只在需要时重新检查
-    retry: false,
-    onError: () => {
-      // 认证检查失败，清除认证信息
-      clearAuthState();
-      navigate('/login');
-    },
+    enabled: getStoredAuthState().isAuthenticated, // 只有在已认证时才调用
+    staleTime: 5 * 60 * 1000, // 5 分钟
+    retry: 2, // 失败时重试 2 次
   });
 }

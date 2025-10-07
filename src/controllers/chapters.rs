@@ -30,6 +30,11 @@ pub struct ReorderParams {
     pub sort_order: i32,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BatchReorderParams {
+    pub chapter_ids: Vec<i32>,
+}
+
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     let item = Entity::find_by_id(id).one(&ctx.db).await?;
 
@@ -87,15 +92,24 @@ pub async fn create(
         .await?
         .ok_or_else(|| Error::NotFound)?;
 
-    let item = ActiveModel {
-        book_id: Set(book_id),
-        title: Set(params.title),
-        description: Set(params.description),
-        sort_order: Set(params.sort_order),
-        ..Default::default()
+    let item = if let Some(sort_order) = params.sort_order {
+        // 使用指定的排序号
+        ActiveModel {
+            book_id: Set(book_id),
+            title: Set(params.title),
+            description: Set(params.description),
+            sort_order: Set(Some(sort_order)),
+            ..Default::default()
+        }
+        .insert(&ctx.db)
+        .await?
+    } else {
+        // 自动获取下一个排序号
+        let item =
+            ActiveModel::create_with_order(&ctx.db, book_id, params.title, params.description)
+                .await?;
+        item.insert(&ctx.db).await?
     };
-
-    let item = item.insert(&ctx.db).await?;
 
     format::json(ChapterResponse::from(item))
 }
@@ -173,14 +187,84 @@ pub async fn reorder(
     format::json(ChapterResponse::from(item))
 }
 
+/// 批量重排序章节
+#[debug_handler]
+pub async fn batch_reorder(
+    auth: auth::JWT,
+    Path(book_id): Path<i32>,
+    State(ctx): State<AppContext>,
+    Json(params): Json<BatchReorderParams>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    // 验证用户是否有权限访问该书籍
+    let _book = books::Entity::find_by_id(book_id)
+        .filter(books::Column::UserIdId.eq(user.id))
+        .one(&ctx.db)
+        .await?
+        .ok_or_else(|| Error::NotFound)?;
+
+    Model::reorder_all(&ctx.db, book_id, &params.chapter_ids).await?;
+
+    let chapters = Model::find_by_book(&ctx.db, book_id).await?;
+    let responses: Vec<ChapterResponse> = chapters.into_iter().map(ChapterResponse::from).collect();
+
+    format::json(responses)
+}
+
+/// 章节上移
+#[debug_handler]
+pub async fn move_up(
+    auth: auth::JWT,
+    Path(id): Path<i32>,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    let _item = load_item(&ctx, id, user.id).await?;
+
+    let moved = Model::move_up(&ctx.db, id).await?;
+
+    if !moved {
+        return Err(Error::Message("Chapter is already at the top".to_string()));
+    }
+
+    let updated_item = Entity::find_by_id(id).one(&ctx.db).await?.unwrap();
+    format::json(ChapterResponse::from(updated_item))
+}
+
+/// 章节下移
+#[debug_handler]
+pub async fn move_down(
+    auth: auth::JWT,
+    Path(id): Path<i32>,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    let _item = load_item(&ctx, id, user.id).await?;
+
+    let moved = Model::move_down(&ctx.db, id).await?;
+
+    if !moved {
+        return Err(Error::Message(
+            "Chapter is already at the bottom".to_string(),
+        ));
+    }
+
+    let updated_item = Entity::find_by_id(id).one(&ctx.db).await?.unwrap();
+    format::json(ChapterResponse::from(updated_item))
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("api/books/{book_id}/chapters/")
         .add("/", get(list))
         .add("/", post(create))
+        .add("/batch-reorder", post(batch_reorder))
         .add("/{id}", get(show))
         .add("/{id}", put(update))
         .add("/{id}", patch(update))
         .add("/{id}", axum_delete(delete))
         .add("/{id}/reorder", post(reorder))
+        .add("/{id}/move-up", post(move_up))
+        .add("/{id}/move-down", post(move_down))
 }

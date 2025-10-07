@@ -10,7 +10,7 @@ export default function Layout() {
   // 公开页面和认证页面使用不同的布局
   if (isPublicPage) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen flex flex-col bg-background">
         <Header variant="public" />
         <main className="flex-1">
           <Outlet />
@@ -22,7 +22,7 @@ export default function Layout() {
 
   if (isAuthPage) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen flex flex-col bg-background">
         <Header variant="auth" />
         <main className="flex-1 flex items-center justify-center py-8">
           <Outlet />
@@ -34,7 +34,7 @@ export default function Layout() {
 
   // 主应用布局
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
       <Header variant="dashboard" />
       <main className="flex-1">
         <Outlet />

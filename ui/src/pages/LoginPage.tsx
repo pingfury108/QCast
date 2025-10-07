@@ -19,16 +19,22 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    await login.mutateAsync({
-      email: data.email,
-      password: data.password,
-    });
+    console.log('开始登录:', { email: data.email, hasPassword: !!data.password });
+
+    try {
+      await login.mutateAsync({
+        email: data.email,
+        password: data.password,
+      });
+    } catch (error) {
+      console.error('登录提交失败:', error);
+    }
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">🎵 QCast</h1>
+        <h1 className="text-3xl font-bold mb-2"> QCast</h1>
         <p className="text-muted-foreground">欢迎回来</p>
       </div>
       <div className="bg-card rounded-lg border p-6">

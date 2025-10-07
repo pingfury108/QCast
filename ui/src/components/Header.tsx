@@ -1,5 +1,10 @@
-import { Link, useLocation } from 'react-router-dom';
-import { isAuthenticated, getStoredAuthState } from '../lib/auth';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { isAuthenticated, clearAuthState } from '../lib/auth';
+import { useAuthState } from '../hooks/useAuthState';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { LogOut, User, Settings } from 'lucide-react';
 
 interface HeaderProps {
   variant?: 'public' | 'auth' | 'dashboard';
@@ -7,7 +12,13 @@ interface HeaderProps {
 
 export default function Header({ variant = 'public' }: HeaderProps) {
   const location = useLocation();
-  const { user } = getStoredAuthState();
+  const navigate = useNavigate();
+  const { user } = useAuthState();
+
+  const handleLogout = () => {
+    clearAuthState();
+    navigate('/login');
+  };
 
   if (variant === 'public') {
     return (
@@ -71,14 +82,47 @@ export default function Header({ variant = 'public' }: HeaderProps) {
           </div>
           <div className="flex items-center space-x-4">
             {user && (
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-medium text-primary">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span className="text-sm font-medium">{user.name}</span>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 hover:bg-accent rounded-lg p-2 transition-colors">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium hidden md:block">{user.name}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-1 leading-none">
+                      <p className="font-medium">{user.name}</p>
+                      <p className="w-[200px] truncate text-sm text-muted-foreground">
+                        {user.email || '邮箱未设置'}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>个人资料</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>设置</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>退出登录</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
