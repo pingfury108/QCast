@@ -18,8 +18,6 @@ impl MigrationTrait for Migration {
                 ("parent_id", ColType::IntegerNull),
                 ("sort_order", ColType::IntegerNull),
                 ("is_public", ColType::BooleanNull),
-                ("created_at", ColType::TimestampWithTimeZone),
-                ("updated_at", ColType::TimestampWithTimeZone),
             ],
             &[("user_id", "users")],
         )
