@@ -2,12 +2,15 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
-use axum::extract::Query;
+use axum::extract::{Path as AxumPath, Query};
 use axum::routing::method_routing::delete as axum_delete;
+use axum_extra::extract::Multipart;
 use loco_rs::prelude::*;
+use uuid::Uuid;
 
 use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
 use crate::models::users;
+use crate::services::storage::StorageService;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
@@ -109,6 +112,245 @@ pub async fn search(
     format::json(responses)
 }
 
+/// 上传媒体文件
+#[debug_handler]
+pub async fn upload(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    mut multipart: Multipart,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    let mut file_data: Option<Vec<u8>> = None;
+    let mut filename: Option<String> = None;
+    let mut content_type: Option<String> = None;
+    let mut title: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut book_id: Option<i32> = None;
+    let mut chapter_id: Option<i32> = None;
+
+    // 解析 multipart 数据
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+
+        match name.as_str() {
+            "file" => {
+                filename = field.file_name().map(|s| s.to_string());
+                content_type = field.content_type().map(|s| s.to_string());
+
+                let data = field
+                    .bytes()
+                    .await
+                    .map_err(|e| Error::Message(format!("读取文件数据失败: {}", e)))?;
+
+                // 限制文件大小 (500MB)
+                if data.len() > 524_288_000 {
+                    return Err(Error::Message("文件大小超过限制 (500MB)".to_string()));
+                }
+
+                file_data = Some(data.to_vec());
+            }
+            "title" => {
+                title = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| Error::Message(format!("读取标题失败: {}", e)))?,
+                );
+            }
+            "description" => {
+                description = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| Error::Message(format!("读取描述失败: {}", e)))?,
+                );
+            }
+            "book_id" => {
+                let book_id_str = field
+                    .text()
+                    .await
+                    .map_err(|e| Error::Message(format!("读取书籍ID失败: {}", e)))?;
+                book_id = Some(
+                    book_id_str
+                        .parse::<i32>()
+                        .map_err(|_| Error::Message("无效的书籍ID".to_string()))?,
+                );
+            }
+            "chapter_id" => {
+                let chapter_id_str = field
+                    .text()
+                    .await
+                    .map_err(|e| Error::Message(format!("读取章节ID失败: {}", e)))?;
+                chapter_id = Some(
+                    chapter_id_str
+                        .parse::<i32>()
+                        .map_err(|_| Error::Message("无效的章节ID".to_string()))?,
+                );
+            }
+            _ => {
+                // 忽略未知字段
+            }
+        }
+    }
+
+    // 验证必需字段
+    let file_data = file_data.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
+    let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
+    let title = title.ok_or_else(|| Error::Message("缺少标题".to_string()))?;
+    let book_id = book_id.ok_or_else(|| Error::Message("缺少书籍ID".to_string()))?;
+
+    // 验证用户是否拥有该书籍
+    use crate::models::_entities::books;
+    let _book = books::Entity::find_by_id(book_id)
+        .filter(books::Column::UserId.eq(user.id))
+        .one(&ctx.db)
+        .await?
+        .ok_or_else(|| Error::Message("书籍不存在或无权限".to_string()))?;
+
+    // 如果指定了章节ID，验证章节是否属于该书籍
+    if let Some(chapter_id) = chapter_id {
+        use crate::models::_entities::chapters;
+        let _chapter = chapters::Entity::find_by_id(chapter_id)
+            .filter(chapters::Column::BookId.eq(book_id))
+            .one(&ctx.db)
+            .await?
+            .ok_or_else(|| Error::Message("章节不存在或不属于指定书籍".to_string()))?;
+    }
+
+    // 使用存储服务保存文件
+    let storage = StorageService::new("uploads");
+    let uploaded_file = storage
+        .save_file(user.id, book_id, &filename, &content_type, &file_data)
+        .await?;
+
+    // 确定文件类型
+    let file_type = storage.determine_file_type(&content_type)?;
+
+    // 生成访问令牌
+    let access_token = Uuid::new_v4().to_string();
+
+    // 创建媒体记录
+    let media = ActiveModel {
+        user_id: Set(user.id),
+        book_id: Set(book_id),
+        chapter_id: Set(chapter_id),
+        title: Set(title),
+        description: Set(description),
+        file_type: Set(file_type),
+        file_path: Set(uploaded_file.path.to_string_lossy().to_string()),
+        file_size: Set(Some(uploaded_file.size as i64)),
+        duration: Set(None), // 暂时为空，后续可以添加媒体处理
+        mime_type: Set(Some(content_type)),
+        access_token: Set(access_token.clone()),
+        access_url: Set(Some(format!(
+            "{}/public/media/{}",
+            ctx.config.server.full_url(),
+            access_token
+        ))),
+        qr_code_path: Set(None), // 暂时为空，后续可以生成二维码
+        file_version: Set(1),
+        original_filename: Set(Some(filename)),
+        play_count: Set(0),
+        is_public: Set(false),
+        ..Default::default()
+    };
+
+    let media = media.insert(&ctx.db).await?;
+
+    format::json(MediaResponse::from(media))
+}
+
+/// 替换媒体文件
+#[debug_handler]
+pub async fn replace_file(
+    auth: auth::JWT,
+    AxumPath(id): AxumPath<i32>,
+    State(ctx): State<AppContext>,
+    mut multipart: Multipart,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    // 验证媒体是否存在且属于当前用户
+    let media = load_item(&ctx, id, user.id).await?;
+    let book_id = media.book_id;
+    let old_file_path = media.file_path.clone();
+    let old_file_version = media.file_version;
+
+    let mut file_data: Option<Vec<u8>> = None;
+    let mut filename: Option<String> = None;
+    let mut content_type: Option<String> = None;
+
+    // 解析 multipart 数据
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+
+        if name == "file" {
+            filename = field.file_name().map(|s| s.to_string());
+            content_type = field.content_type().map(|s| s.to_string());
+
+            let data = field
+                .bytes()
+                .await
+                .map_err(|e| Error::Message(format!("读取文件数据失败: {}", e)))?;
+
+            // 限制文件大小 (500MB)
+            if data.len() > 524_288_000 {
+                return Err(Error::Message("文件大小超过限制 (500MB)".to_string()));
+            }
+
+            file_data = Some(data.to_vec());
+            break;
+        }
+    }
+
+    // 验证必需字段
+    let file_data = file_data.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
+    let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
+
+    // 使用存储服务替换文件
+    let storage = StorageService::new("uploads");
+    let uploaded_file = storage
+        .replace_file(
+            user.id,
+            book_id,
+            std::path::Path::new(&old_file_path),
+            &filename,
+            &content_type,
+            &file_data,
+        )
+        .await?;
+
+    // 确定文件类型
+    let file_type = storage.determine_file_type(&content_type)?;
+
+    // 更新媒体记录（保持 access_token 不变）
+    let mut active_model: ActiveModel = media.into();
+    active_model.file_type = Set(file_type);
+    active_model.file_path = Set(uploaded_file.path.to_string_lossy().to_string());
+    active_model.file_size = Set(Some(uploaded_file.size as i64));
+    active_model.duration = Set(None); // 暂时重置时长，后续可以重新提取
+    active_model.mime_type = Set(Some(content_type));
+    active_model.file_version = Set(old_file_version + 1);
+    active_model.original_filename = Set(Some(filename));
+    active_model.updated_at = Set(chrono::Utc::now().into());
+    // access_token 保持不变
+
+    let updated_media = active_model.update(&ctx.db).await?;
+
+    format::json(MediaResponse::from(updated_media))
+}
+
 /// 发布/取消发布媒体
 #[debug_handler]
 pub async fn publish(
@@ -127,11 +369,13 @@ pub async fn publish(
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("/api/media")
+        .add("/upload", post(upload))
         .add("/", get(list))
         .add("/search", get(search))
         .add("/{id}", get(show))
         .add("/{id}", put(update))
         .add("/{id}", patch(update))
         .add("/{id}", axum_delete(delete))
+        .add("/{id}/replace-file", put(replace_file))
         .add("/{id}/publish", post(publish))
 }

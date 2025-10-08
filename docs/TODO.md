@@ -2,7 +2,7 @@
 
 ## 📊 项目进度概览
 
-**总体进度：** 82/165 任务完成 (49.7%)
+**总体进度：** 86/165 任务完成 (52.1%)
 
 ### 各阶段完成情况：
 - ✅ **Phase 1:** 前端基础框架搭建 (100% - 11/11)
@@ -11,11 +11,12 @@
 - ✅ **Phase 4:** 后端 Books 模块 (100% - 12/12)
 - ✅ **Phase 5:** 前端 Books 功能 (100% - 12/12)
 - ✅ **Phase 6:** 后端 Chapters 模块 (100% - 10/10)
-- 🔄 **Phase 7:** 后端 Media 模块 (75% - 12/16)
+- ✅ **Phase 7:** 后端 Media 模块 (100% - 16/16)
   - ✅ Media Model 业务逻辑完成
-  - ✅ Media Controller 基础 API 完成
+  - ✅ Media Controller 完整 API 完成
+  - ✅ 文件上传和存储服务完成
+  - ✅ 文件替换功能完成
   - ✅ 8 个集成测试全部通过
-  - ⏳ 待完成：文件上传功能
 - ⏳ **Phase 8:** 二维码和公开访问 (0% - 0/13)
 - ⏳ **Phase 9:** 前端 Media 功能 (0% - 0/14)
 - ⏳ **Phase 10:** 公开访问前端 (0% - 0/9)
@@ -25,6 +26,9 @@
 ### 最近更新：
 - ✅ 2025-10-08: 完成 Media Model 和 Controller 基础功能
 - ✅ 2025-10-08: Media 模块 8 个集成测试全部通过
+- ✅ 2025-10-08: 完成文件上传和存储服务
+- ✅ 2025-10-08: 完成文件替换功能
+- ✅ 2025-10-08: Phase 7 后端 Media 模块 100% 完成
 
 ---
 
@@ -161,19 +165,19 @@
 - [x] 实现 access_token 生成逻辑
 
 ### 7.2 文件存储服务
-- [ ] 创建 Storage Service（保存文件）
-- [ ] 实现文件类型验证
-- [ ] 实现文件大小验证
-- [ ] 实现 UUID 文件名生成
-- [ ] 创建目录结构（users/{user_id}/books/{book_id}/media）
+- [x] 创建 Storage Service（保存文件）
+- [x] 实现文件类型验证
+- [x] 实现文件大小验证
+- [x] 实现 UUID 文件名生成
+- [x] 创建目录结构（users/{user_id}/books/{book_id}/media）
 
 ### 7.3 Media Controller
-- [ ] 实现 POST /api/media/upload（上传文件）
+- [x] 实现 POST /api/media/upload（上传文件）
 - [x] 实现 GET /api/media（获取列表）
 - [x] 实现 GET /api/media/search（搜索）
 - [x] 实现 GET /api/media/:id（获取详情）
 - [x] 实现 PUT /api/media/:id（更新元数据）
-- [ ] 实现 PUT /api/media/:id/replace-file（替换文件）
+- [x] 实现 PUT /api/media/:id/replace-file（替换文件）
 - [x] 实现 DELETE /api/media/:id（删除）
 - [x] 实现 POST /api/media/:id/publish（发布/取消发布）
 

@@ -3,11 +3,11 @@ source: tests/requests/medias.rs
 expression: media_response
 ---
 Object {
-    "access_token": String("d046b711-1cac-4d0a-a840-58a44a2fcfb0"),
-    "access_url": String("http://localhost:5150/public/media/d046b711-1cac-4d0a-a840-58a44a2fcfb0"),
+    "access_token": String("fe6b26c1-c41e-4d61-89c6-0bb07934b962"),
+    "access_url": String("http://localhost:5150/public/media/fe6b26c1-c41e-4d61-89c6-0bb07934b962"),
     "book_id": Number(1),
     "chapter_id": Null,
-    "created_at": String("2025-10-08T06:00:43Z"),
+    "created_at": String("2025-10-08T07:57:18Z"),
     "description": String("Test Description"),
     "duration": Number(120),
     "file_path": String("/test/path.mp3"),
@@ -21,6 +21,6 @@ Object {
     "play_count": Number(0),
     "qr_code_path": Null,
     "title": String("Test Media"),
-    "updated_at": String("2025-10-08T06:00:43.484303Z"),
+    "updated_at": String("2025-10-08T07:57:18.682259Z"),
     "user_id": Number(1),
 }
