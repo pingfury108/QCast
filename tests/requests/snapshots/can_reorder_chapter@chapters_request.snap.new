@@ -1,14 +1,14 @@
 ---
 source: tests/requests/chapters.rs
-assertion_line: 336
+assertion_line: 373
 expression: reordered_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-07T17:12:26Z"),
+    "created_at": String("2025-10-08T05:59:28Z"),
     "description": Null,
     "id": Number(1),
     "sort_order": Number(5),
     "title": String("Chapter to Reorder"),
-    "updated_at": String("2025-10-07T17:12:26.441021Z"),
+    "updated_at": String("2025-10-08T05:59:28.100331Z"),
 }
