@@ -1,15 +1,25 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useBook, useUpdateBook } from '../hooks/useBooks'
-import { useChapters, useCreateChapter, useUpdateChapter, useDeleteChapter, useMoveChapterUp, useMoveChapterDown } from '../hooks/useChapters'
+import {
+  useChapters,
+  useCreateChapter,
+  useUpdateChapter,
+  useDeleteChapter,
+  useReorderChapter,
+  useChapterTree,
+  useCreateChildChapter,
+  useMoveChapter
+} from '../hooks/useChapters'
 import { useBookMedias, useToggleMediaPublish, useDeleteMedia } from '../hooks/useMedias'
 import type { Book } from '../hooks/useBooks'
-import type { Chapter } from '../services/chapters'
+import type { Chapter, ChapterTree } from '../services/chapters'
 import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import ChapterTree from '../components/ChapterTree'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -55,13 +65,15 @@ export default function BookDetailPage() {
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
+  const { data: chapterTree = [], isLoading: chapterTreeLoading } = useChapterTree(bookId)
   const { data: medias = [], isLoading: mediasLoading } = useBookMedias(bookId)
   const updateBookMutation = useUpdateBook()
   const createChapterMutation = useCreateChapter()
   const updateChapterMutation = useUpdateChapter()
   const deleteChapterMutation = useDeleteChapter()
-  const moveChapterUpMutation = useMoveChapterUp()
-  const moveChapterDownMutation = useMoveChapterDown()
+  const reorderChapterMutation = useReorderChapter()
+  const createChildChapterMutation = useCreateChildChapter()
+  const moveChapterMutation = useMoveChapter()
   const toggleMediaPublishMutation = useToggleMediaPublish()
   const deleteMediaMutation = useDeleteMedia()
 
@@ -127,7 +139,7 @@ export default function BookDetailPage() {
     setEditingChapter(null)
   }
 
-  const handleDeleteChapter = (chapter: Chapter) => {
+  const handleDeleteChapter = (chapter: Chapter | ChapterTree) => {
     if (window.confirm(`确定要删除章节"${chapter.title}"吗？`)) {
       if (!book) return
       deleteChapterMutation.mutate({
@@ -135,6 +147,67 @@ export default function BookDetailPage() {
         id: chapter.id
       })
     }
+  }
+
+  const handleCreateChildChapter = (parentId: number, params: { title: string; description?: string }) => {
+    if (!book) return
+    createChildChapterMutation.mutate({
+      bookId: book.id,
+      parentId,
+      params
+    })
+  }
+
+  const handleMoveChapter = (chapterId: number, newParentId?: number) => {
+    if (!book) return
+    moveChapterMutation.mutate({
+      bookId: book.id,
+      id: chapterId,
+      params: {
+        new_parent_id: newParentId
+      }
+    })
+  }
+
+  const handleDropChapter = (draggedId: number, targetId: number) => {
+    if (!book) return
+
+    // 检查是否是同级拖拽
+    const draggedChapter = findChapterInTree(chapterTree, draggedId)
+    const targetChapter = findChapterInTree(chapterTree, targetId)
+
+    if (draggedChapter && targetChapter) {
+      if (draggedChapter.parent_id === targetChapter.parent_id) {
+        // 同级排序 - 使用reorder API
+        const targetSortOrder = targetChapter.sort_order || 0
+        reorderChapterMutation.mutate({
+          bookId: book.id,
+          id: draggedId,
+          params: { sort_order: targetSortOrder }
+        })
+      } else {
+        // 跨级移动 - 成为子章节
+        moveChapterMutation.mutate({
+          bookId: book.id,
+          id: draggedId,
+          params: {
+            new_parent_id: targetId
+          }
+        })
+      }
+    }
+  }
+
+  // 辅助函数：在树中查找章节
+  const findChapterInTree = (tree: ChapterTree[], id: number): ChapterTree | null => {
+    for (const chapter of tree) {
+      if (chapter.id === id) return chapter
+      if (chapter.children) {
+        const found = findChapterInTree(chapter.children, id)
+        if (found) return found
+      }
+    }
+    return null
   }
 
   const handleMoveChapterUp = (chapter: Chapter) => {
@@ -150,6 +223,29 @@ export default function BookDetailPage() {
     moveChapterDownMutation.mutate({
       bookId: book.id,
       id: chapter.id
+    })
+  }
+
+  const handleReorderChapter = (draggedId: number, targetId: number, position: 'before' | 'after') => {
+    // 同级内重新排序
+    if (!book) return
+
+    const targetChapter = findChapterInTree(chapterTree, targetId)
+    if (!targetChapter) return
+
+    let newSortOrder: number
+    if (position === 'before') {
+      // 插入到目标前面，使用目标的sort_order
+      newSortOrder = targetChapter.sort_order || 0
+    } else {
+      // 插入到目标后面，使用目标的sort_order + 1
+      newSortOrder = (targetChapter.sort_order || 0) + 1
+    }
+
+    reorderChapterMutation.mutate({
+      bookId: book.id,
+      id: draggedId,
+      params: { sort_order: newSortOrder }
     })
   }
 
@@ -397,70 +493,33 @@ export default function BookDetailPage() {
               </Button>
             </div>
 
-            {chaptersLoading ? (
+            {chapterTreeLoading ? (
               <div className="text-center py-8">加载章节中...</div>
-            ) : chapters.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>暂无章节</p>
-                <p className="text-sm">点击上方按钮创建第一个章节</p>
-              </div>
             ) : (
-              <div className="grid gap-3">
-                {chapters.map((chapter, index) => (
-                  <div key={chapter.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex flex-col items-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveChapterUp(chapter)}
-                          disabled={index === 0}
-                          className="h-6 w-6 p-0"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMoveChapterDown(chapter)}
-                          disabled={index === chapters.length - 1}
-                          className="h-6 w-6 p-0"
-                        >
-                          <ChevronDown className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <BookOpen className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{chapter.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {chapter.media_count} 个媒体文件
-                        </div>
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditChapter(chapter)}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteChapter(chapter)}>
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ))}
-              </div>
+              <ChapterTree
+                chapters={chapterTree}
+                bookId={book.id}
+                onEdit={(chapter) => {
+                  // 转换为Chapter类型用于编辑
+                  const chapterForEdit: Chapter = {
+                    ...chapter,
+                    parent_id: chapter.parent_id || undefined,
+                    level: chapter.level || undefined,
+                    path: chapter.path || undefined
+                  }
+                  setEditingChapter(chapterForEdit)
+                  editChapterForm.reset({
+                    title: chapterForEdit.title,
+                    description: chapterForEdit.description || ''
+                  })
+                  setEditChapterDialogOpen(true)
+                }}
+                onDelete={handleDeleteChapter}
+                onCreateChild={handleCreateChildChapter}
+                onMove={handleMoveChapter}
+                onDrop={handleDropChapter}
+                onReorder={handleReorderChapter}
+              />
             )}
           </TabsContent>
 

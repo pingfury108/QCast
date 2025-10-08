@@ -5,13 +5,38 @@ export interface Chapter {
   title: string
   description?: string
   book_id: number
+  parent_id?: number | null
+  level?: number | null
+  path?: string | null
   sort_order?: number
   media_count: number
   created_at: string
   updated_at: string
 }
 
+export interface ChapterTree {
+  id: number
+  title: string
+  description?: string
+  book_id: number
+  parent_id?: number | null
+  level?: number | null
+  path?: string | null
+  sort_order?: number
+  media_count: number
+  created_at: string
+  updated_at: string
+  children: ChapterTree[]
+}
+
 export interface CreateChapterParams {
+  title: string
+  description?: string
+  parent_id?: number
+  sort_order?: number
+}
+
+export interface CreateChildChapterParams {
   title: string
   description?: string
   sort_order?: number
@@ -29,6 +54,11 @@ export interface ReorderChapterParams {
 
 export interface BatchReorderChapterParams {
   chapter_ids: number[]
+}
+
+export interface MoveChapterParams {
+  new_parent_id?: number
+  new_sort_order?: number
 }
 
 export const chaptersService = {
@@ -81,6 +111,30 @@ export const chaptersService = {
   // 章节下移
   async moveChapterDown(bookId: number, id: number): Promise<Chapter> {
     const response = await api.post(`/books/${bookId}/chapters/${id}/move-down`)
+    return response.data
+  },
+
+  // 获取书籍的章节树
+  async getChapterTree(bookId: number): Promise<ChapterTree[]> {
+    const response = await api.get(`/books/${bookId}/chapters/tree`)
+    return response.data
+  },
+
+  // 获取章节的子章节
+  async getChapterChildren(bookId: number, id: number): Promise<Chapter[]> {
+    const response = await api.get(`/books/${bookId}/chapters/${id}/children`)
+    return response.data
+  },
+
+  // 创建子章节
+  async createChildChapter(bookId: number, parentId: number, params: CreateChildChapterParams): Promise<Chapter> {
+    const response = await api.post(`/books/${bookId}/chapters/${parentId}/children`, params)
+    return response.data
+  },
+
+  // 移动章节到新的父级
+  async moveChapter(bookId: number, id: number, params: MoveChapterParams): Promise<Chapter> {
+    const response = await api.post(`/books/${bookId}/chapters/${id}/move`, params)
     return response.data
   }
 }

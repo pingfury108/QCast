@@ -46,47 +46,69 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic, onCreateS
     <div className="select-none">
       <Link to={`/dashboard/books/${book.id}`}>
         <div
-          className={`flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors ${
-            level > 0 ? 'ml-' + (level * 8) : ''
+          className={`
+            flex items-center gap-2 p-3 rounded-lg border transition-all
+            hover:bg-accent/50 cursor-pointer
+            ${level > 0 ? 'ml-' + (level * 8) : ''
           }`}
           style={{ marginLeft: level > 0 ? `${level * 2}rem` : '0' }}
         >
-        <div className="flex items-center space-x-3">
-          {hasChildren && (
-            <button
-              onClick={(e) => {
+        {/* 展开/收起按钮 - 始终保留占位位置 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 flex-shrink-0"
+            onClick={(e) => {
+              if (hasChildren) {
                 e.preventDefault()
                 e.stopPropagation()
                 setIsExpanded(!isExpanded)
-              }}
-              className="p-1 hover:bg-muted rounded"
-            >
-              {isExpanded ? (
+              }
+            }}
+          >
+            {hasChildren ? (
+              isExpanded ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
                 <ChevronRight className="w-4 h-4" />
-              )}
-            </button>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-5 h-5 text-blue-600" />
-
-            <span className="font-medium">{book.title}</span>
-            {book.is_public ? (
-              <Eye className="w-4 h-4 text-green-600" />
+              )
             ) : (
-              <EyeOff className="w-4 h-4 text-gray-400" />
+              // 占位空间，没有子章节时显示空白
+              <div className="w-4 h-4" />
             )}
-          </div>
-        </div>
+          </Button>
 
-        <div className="flex items-center space-x-2">
+          {/* 书籍图标和内容 */}
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <BookOpen className="w-4 h-4 text-blue-600" />
+          </div>
+
+          {/* 书籍信息 */}
+          <div className="flex-1 min-w-0">
+            <div className="font-medium truncate">{book.title}</div>
+            <div className="text-sm text-muted-foreground">
+              {book.is_public ? (
+                <span className="flex items-center gap-1">
+                  <Eye className="w-3 h-3 text-green-600" />
+                  公开
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <EyeOff className="w-3 h-3 text-gray-400" />
+                  私密
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-8 w-8 p-0"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
