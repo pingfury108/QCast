@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useBooks, useCreateBook, useUpdateBook, useDeleteBook, useBookTree } from '../hooks/useBooks'
 import type { Book, BookTree } from '../hooks/useBooks'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const createBookSchema = z.object({
   title: z.string().min(1, '书名不能为空'),
@@ -28,16 +29,18 @@ const createBookSchema = z.object({
 type CreateBookForm = z.infer<typeof createBookSchema>
 
 // 树形节点组件
-const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
+const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic, onCreateSubBook }: {
   node: BookTree
   level?: number
   onEdit: (book: Book) => void
   onDelete: (book: Book) => void
   onTogglePublic: (book: Book) => void
+  onCreateSubBook: (book: Book) => void
 }) => {
-  const [isExpanded, setIsExpanded] = useState(level === 0)
+  const [isExpanded, setIsExpanded] = useState(false) // 默认折叠
 
   const book = node.book
+  const hasChildren = node.children && node.children.length > 0
 
   return (
     <div className="select-none">
@@ -49,7 +52,7 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
           style={{ marginLeft: level > 0 ? `${level * 2}rem` : '0' }}
         >
         <div className="flex items-center space-x-3">
-          {node.children && node.children.length > 0 && (
+          {hasChildren && (
             <button
               onClick={(e) => {
                 e.preventDefault()
@@ -93,6 +96,14 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onCreateSubBook(book)
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                创建子书籍
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onEdit(book)}>
                 <Edit className="w-4 h-4 mr-2" />
                 编辑
@@ -123,7 +134,7 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
         </div>
       </Link>
 
-      {isExpanded && node.children && (
+      {isExpanded && hasChildren && (
         <div className="mt-1">
           {node.children.map((child, index) => (
             <TreeNode
@@ -133,6 +144,7 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
               onEdit={onEdit}
               onDelete={onDelete}
               onTogglePublic={onTogglePublic}
+              onCreateSubBook={onCreateSubBook}
             />
           ))}
         </div>
@@ -146,6 +158,8 @@ export default function DashboardBooks() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editingBook, setEditingBook] = useState<Book | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [parentBookId, setParentBookId] = useState<number | undefined>(undefined)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const { data: books, isLoading, error } = useBooks()
   const createBookMutation = useCreateBook()
@@ -166,15 +180,43 @@ export default function DashboardBooks() {
     resolver: zodResolver(createBookSchema)
   })
 
-  // 构建树形数据结构 - 使用真实的书籍树形结构
-  const buildTreeData = (books: Book[]) => {
-    // 只返回顶级书籍，不需要模拟的子章节
-    const treeData = books?.filter(book => !book.parent_id).map(book => ({
-      book: book,
-      children: [] // 初始为空，后续可以通过 useBookTree 获取子书籍
-    })) || []
+  // 处理URL参数，自动打开创建子书籍对话框
+  useEffect(() => {
+    const createSubBookParam = searchParams.get('create_sub_book')
+    if (createSubBookParam) {
+      const parentId = parseInt(createSubBookParam)
+      if (!isNaN(parentId)) {
+        handleCreateSubBook(books?.find(b => b.id === parentId)!)
+        // 清除URL参数
+        setSearchParams({})
+      }
+    }
+  }, [searchParams, books])
 
-    return treeData
+  // 构建树形数据结构 - 使用真实的书籍树形结构
+  const buildTreeData = (books: Book[]): BookTree[] => {
+    if (!books) return []
+
+    // 创建 ID 到书籍的映射
+    const bookMap = new Map<number, BookTree>()
+    books.forEach(book => {
+      bookMap.set(book.id, { book, children: [] })
+    })
+
+    // 构建树形结构
+    const rootBooks: BookTree[] = []
+    books.forEach(book => {
+      const treeNode = bookMap.get(book.id)!
+      if (book.parent_id && bookMap.has(book.parent_id)) {
+        // 添加到父书籍的children中
+        bookMap.get(book.parent_id)!.children.push(treeNode)
+      } else {
+        // 顶级书籍
+        rootBooks.push(treeNode)
+      }
+    })
+
+    return rootBooks
   }
 
   const treeData = buildTreeData(books)
@@ -185,9 +227,23 @@ export default function DashboardBooks() {
   )
 
   const handleCreateBook = (data: CreateBookForm) => {
-    createBookMutation.mutate(data)
+    // 如果设置了parentBookId，添加到表单数据中
+    const bookData = parentBookId ? { ...data, parent_id: parentBookId } : data
+    createBookMutation.mutate(bookData)
     createForm.reset()
     setCreateDialogOpen(false)
+    setParentBookId(undefined)
+  }
+
+  const handleCreateSubBook = (parentBook: Book) => {
+    setParentBookId(parentBook.id)
+    createForm.reset({
+      title: '',
+      description: '',
+      cover_image: '',
+      is_public: false
+    })
+    setCreateDialogOpen(true)
   }
 
   const handleEditBook = (book: Book) => {
@@ -253,9 +309,12 @@ export default function DashboardBooks() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>创建新书籍</DialogTitle>
+              <DialogTitle>{parentBookId ? '创建子书籍' : '创建新书籍'}</DialogTitle>
               <DialogDescription>
-                创建一个新的书籍来组织你的媒体内容
+                {parentBookId
+                  ? `为 "${books?.find(b => b.id === parentBookId)?.title}" 创建一个子书籍`
+                  : '创建一个新的书籍来组织你的媒体内容'
+                }
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
@@ -286,6 +345,36 @@ export default function DashboardBooks() {
                     </FormItem>
                   )}
                 />
+                {!parentBookId && books && books.length > 0 && (
+                  <FormField
+                    control={createForm.control}
+                    name="parent_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>父书籍（可选）</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                          value={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择父书籍" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">无（顶级书籍）</SelectItem>
+                            {books.map(book => (
+                              <SelectItem key={book.id} value={book.id.toString()}>
+                                {book.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={createForm.control}
                   name="is_public"
@@ -347,6 +436,7 @@ export default function DashboardBooks() {
                   onEdit={handleEditBook}
                   onDelete={handleDeleteBook}
                   onTogglePublic={handleTogglePublic}
+                  onCreateSubBook={handleCreateSubBook}
                 />
               ))}
             </div>

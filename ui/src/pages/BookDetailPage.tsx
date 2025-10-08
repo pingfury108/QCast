@@ -51,6 +51,7 @@ export default function BookDetailPage() {
   const [editChapterDialogOpen, setEditChapterDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('media')
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
+  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set())
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
@@ -245,6 +246,13 @@ export default function BookDetailPage() {
             </div>
 
             <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={() => {
+                // TODO: 导航到创建书籍页面并设置parent_id
+                window.location.href = `/dashboard/books?create_sub_book=${book.id}`
+              }}>
+                <Plus className="w-4 h-4 mr-2" />
+                创建子书籍
+              </Button>
               <Button variant="outline" size="sm" onClick={handleEditBook}>
                 <Edit className="w-4 h-4 mr-2" />
                 编辑
