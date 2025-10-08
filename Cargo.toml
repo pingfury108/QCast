@@ -42,6 +42,14 @@ unic-langid = { version = "0.9" }
 axum-extra = { version = "0.10", features = ["form", "multipart"] }
 lazy_static = "1.5"
 tempfile = "3.5"
+# 二维码生成
+qrcode = "0.14"
+# 图片处理
+image = "0.25"
+# HTTP 文件服务和 Range 请求支持
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+# 字节操作
+bytes = "1.5"
 
 [[bin]]
 name = "qcast-cli"

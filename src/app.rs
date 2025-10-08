@@ -15,7 +15,7 @@ use std::path::Path;
 
 #[allow(unused_imports)]
 use crate::{
-    controllers, initializers, models::_entities::users, tasks, workers::downloader::DownloadWorker,
+    controllers, initializers, models::_entities::users, tasks,
 };
 
 pub struct App;
@@ -54,10 +54,10 @@ impl Hooks for App {
             .add_route(controllers::books::routes())
             .add_route(controllers::chapters::routes())
             .add_route(controllers::medias::routes())
+            .add_route(controllers::public::routes())
             .add_route(controllers::auth::routes())
     }
-    async fn connect_workers(ctx: &AppContext, queue: &Queue) -> Result<()> {
-        queue.register(DownloadWorker::build(ctx)).await?;
+    async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
         Ok(())
     }
 

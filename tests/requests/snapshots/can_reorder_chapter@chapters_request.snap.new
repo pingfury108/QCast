@@ -5,10 +5,10 @@ expression: reordered_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-08T05:59:28Z"),
+    "created_at": String("2025-10-08T08:52:00Z"),
     "description": Null,
     "id": Number(1),
     "sort_order": Number(5),
     "title": String("Chapter to Reorder"),
-    "updated_at": String("2025-10-08T05:59:28.100331Z"),
+    "updated_at": String("2025-10-08T08:52:00.134450Z"),
 }

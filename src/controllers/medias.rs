@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
 use crate::models::users;
 use crate::services::storage::StorageService;
+use crate::services::qrcode::QRCODE_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
@@ -263,6 +264,20 @@ pub async fn upload(
 
     let media = media.insert(&ctx.db).await?;
 
+    // 异步生成二维码（不阻塞响应）
+    if let Some(ref access_url) = media.access_url {
+        let media_id = media.id;
+        let access_url_clone = access_url.clone();
+        let ctx_clone = ctx.clone();
+
+        // 使用 tokio spawn 异步生成二维码
+        tokio::spawn(async move {
+            if let Err(e) = generate_qrcode_for_media(&ctx_clone, media_id, &access_url_clone).await {
+                tracing::error!("异步生成二维码失败: {}", e);
+            }
+        });
+    }
+
     format::json(MediaResponse::from(media))
 }
 
@@ -351,6 +366,45 @@ pub async fn replace_file(
     format::json(MediaResponse::from(updated_media))
 }
 
+/// 异步生成二维码的辅助函数
+async fn generate_qrcode_for_media(
+    ctx: &AppContext,
+    media_id: i32,
+    access_url: &str,
+) -> Result<()> {
+    tracing::info!("开始为媒体 {} 生成二维码", media_id);
+
+    // 生成二维码
+    let qrcode_path = QRCODE_SERVICE
+        .generate_media_qrcode(media_id, access_url)
+        .await
+        .map_err(|e| {
+            tracing::error!("为媒体 {} 生成二维码失败: {}", media_id, e);
+            e
+        })?;
+
+    // 更新媒体记录中的二维码路径
+    let media = crate::models::_entities::medias::Entity::find_by_id(media_id)
+        .one(&ctx.db)
+        .await?
+        .ok_or_else(|| Error::Message(format!("媒体 {} 不存在", media_id)))?;
+
+    use sea_orm::ActiveModelTrait;
+    use sea_orm::Set;
+    let mut active_model: crate::models::_entities::medias::ActiveModel = media.into();
+    active_model.qr_code_path = Set(Some(qrcode_path.clone()));
+
+    active_model.update(&ctx.db).await
+        .map_err(|e| {
+            tracing::error!("更新媒体 {} 的二维码路径失败: {}", media_id, e);
+            Error::Message(format!("更新二维码路径失败: {}", e))
+        })?;
+
+    tracing::info!("媒体 {} 的二维码生成完成: {}", media_id, qrcode_path);
+
+    Ok(())
+}
+
 /// 发布/取消发布媒体
 #[debug_handler]
 pub async fn publish(
@@ -366,6 +420,77 @@ pub async fn publish(
     format::json(MediaResponse::from(media))
 }
 
+/// 获取媒体二维码
+#[debug_handler]
+pub async fn get_qrcode(
+    auth: auth::JWT,
+    Path(id): Path<i32>,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    let media = load_item(&ctx, id, user.id).await?;
+
+    // 如果没有二维码，生成一个
+    let qrcode_path = if let Some(ref path) = media.qr_code_path {
+        path.clone()
+    } else {
+        // 生成二维码
+        let access_url = media.access_url.as_ref()
+            .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
+
+        let qrcode_relative_path = QRCODE_SERVICE
+            .generate_media_qrcode(media.id, access_url)
+            .await?;
+
+        // 更新媒体记录
+        let mut active_model: ActiveModel = media.into();
+        active_model.qr_code_path = Set(Some(qrcode_relative_path.clone()));
+        let _updated_media = active_model.update(&ctx.db).await?;
+
+        qrcode_relative_path
+    };
+
+    format::json(serde_json::json!({
+        "qrcode_path": qrcode_path,
+        "qrcode_url": format!("{}/{}",
+            ctx.config.server.full_url(),
+            qrcode_path
+        )
+    }))
+}
+
+/// 重新生成媒体二维码
+#[debug_handler]
+pub async fn regenerate_qrcode(
+    auth: auth::JWT,
+    Path(id): Path<i32>,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    let media = load_item(&ctx, id, user.id).await?;
+
+    // 重新生成二维码
+    let access_url = media.access_url.as_ref()
+        .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
+
+    let qrcode_relative_path = QRCODE_SERVICE
+        .regenerate_media_qrcode(media.id, access_url)
+        .await?;
+
+    // 更新媒体记录
+    let mut active_model: ActiveModel = media.into();
+    active_model.qr_code_path = Set(Some(qrcode_relative_path.clone()));
+    let _updated_media = active_model.update(&ctx.db).await?;
+
+    format::json(serde_json::json!({
+        "qrcode_path": qrcode_relative_path,
+        "qrcode_url": format!("{}/{}",
+            ctx.config.server.full_url(),
+            qrcode_relative_path
+        )
+    }))
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("/api/media")
@@ -378,4 +503,6 @@ pub fn routes() -> Routes {
         .add("/{id}", axum_delete(delete))
         .add("/{id}/replace-file", put(replace_file))
         .add("/{id}/publish", post(publish))
+        .add("/{id}/qrcode", get(get_qrcode))
+        .add("/{id}/regenerate-qr", post(regenerate_qrcode))
 }
