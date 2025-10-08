@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MediaResponse {
     pub id: i32,
-    pub title: Option<String>,
+    pub title: String,
     pub description: Option<String>,
     pub file_type: String,
     pub file_path: String,
@@ -14,11 +14,11 @@ pub struct MediaResponse {
     pub access_token: String,
     pub access_url: Option<String>,
     pub qr_code_path: Option<String>,
-    pub file_version: Option<i32>,
+    pub file_version: i32,
     pub original_filename: Option<String>,
-    pub play_count: Option<i32>,
-    pub is_public: Option<bool>,
-    pub chapter_id: i32,
+    pub play_count: i32,
+    pub is_public: bool,
+    pub chapter_id: Option<i32>,
     pub book_id: i32,
     pub user_id: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -56,13 +56,13 @@ impl From<Model> for MediaResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PublicMediaResponse {
     pub id: i32,
-    pub title: Option<String>,
+    pub title: String,
     pub description: Option<String>,
     pub file_type: String,
     pub duration: Option<i32>,
     pub mime_type: Option<String>,
     pub original_filename: Option<String>,
-    pub play_count: Option<i32>,
+    pub play_count: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -80,4 +80,37 @@ impl From<Model> for PublicMediaResponse {
             created_at: media.created_at.into(),
         }
     }
+}
+
+/// 创建媒体的请求参数
+#[derive(Debug, Deserialize)]
+pub struct CreateMediaParams {
+    pub title: String,
+    pub description: Option<String>,
+    pub book_id: i32,
+    pub chapter_id: Option<i32>,
+}
+
+/// 更新媒体的请求参数
+#[derive(Debug, Deserialize)]
+pub struct UpdateMediaParams {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub is_public: Option<bool>,
+}
+
+/// 媒体上传响应
+#[derive(Debug, Serialize)]
+pub struct MediaUploadResponse {
+    pub id: i32,
+    pub title: String,
+    pub file_type: String,
+    pub file_size: Option<i64>,
+    pub duration: Option<i32>,
+    pub access_token: String,
+    pub access_url: String,
+    pub file_version: i32,
+    pub original_filename: Option<String>,
+    pub is_public: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }

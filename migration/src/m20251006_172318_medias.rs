@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
             "medias",
             &[
                 ("id", ColType::PkAuto),
-                ("title", ColType::StringNull),
+                ("title", ColType::String),
                 ("description", ColType::TextNull),
                 ("file_type", ColType::String),
                 ("file_path", ColType::String),
@@ -22,16 +22,15 @@ impl MigrationTrait for Migration {
                 ("access_token", ColType::String),
                 ("access_url", ColType::StringNull),
                 ("qr_code_path", ColType::StringNull),
-                ("file_version", ColType::IntegerNull),
+                ("file_version", ColType::Integer),
                 ("original_filename", ColType::StringNull),
-                ("play_count", ColType::IntegerNull),
-                ("is_public", ColType::BooleanNull),
+                ("play_count", ColType::Integer),
+                ("is_public", ColType::Boolean),
+                ("chapter_id", ColType::IntegerNull),
+                ("book_id", ColType::Integer),
+                ("user_id", ColType::Integer),
             ],
-            &[
-                ("chapter_id", "chapters"),
-                ("book_id", "books"),
-                ("user_id", "users"),
-            ],
+            &[],
         )
         .await
     }

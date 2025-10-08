@@ -10,7 +10,7 @@ pub struct Model {
     pub updated_at: DateTimeWithTimeZone,
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub title: Option<String>,
+    pub title: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
     pub file_type: String,
@@ -18,14 +18,16 @@ pub struct Model {
     pub file_size: Option<i64>,
     pub duration: Option<i32>,
     pub mime_type: Option<String>,
+    #[sea_orm(unique)]
     pub access_token: String,
     pub access_url: Option<String>,
     pub qr_code_path: Option<String>,
-    pub file_version: Option<i32>,
+    pub file_version: i32,
     pub original_filename: Option<String>,
-    pub play_count: Option<i32>,
-    pub is_public: Option<bool>,
-    pub chapter_id: i32,
+    pub play_count: i32,
+    pub is_public: bool,
+    #[sea_orm(nullable)]
+    pub chapter_id: Option<i32>,
     pub book_id: i32,
     pub user_id: i32,
 }
@@ -45,7 +47,7 @@ pub enum Relation {
         from = "Column::ChapterId",
         to = "super::chapters::Column::Id",
         on_update = "Cascade",
-        on_delete = "Cascade"
+        on_delete = "SetNull"
     )]
     Chapters,
     #[sea_orm(

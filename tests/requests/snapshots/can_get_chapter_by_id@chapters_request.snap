@@ -4,10 +4,10 @@ expression: response_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-07T17:19:38Z"),
+    "created_at": String("2025-10-08T05:54:49Z"),
     "description": String("Test Description"),
     "id": Number(1),
     "sort_order": Number(1),
     "title": String("Test Chapter"),
-    "updated_at": String("2025-10-07T17:19:38Z"),
+    "updated_at": String("2025-10-08T05:54:49Z"),
 }
