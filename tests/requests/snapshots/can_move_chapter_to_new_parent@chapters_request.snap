@@ -1,0 +1,17 @@
+---
+source: tests/requests/chapters.rs
+expression: moved_chapter
+---
+Object {
+    "book_id": Number(1),
+    "created_at": String("2025-10-08T15:50:39Z"),
+    "description": Null,
+    "id": Number(3),
+    "level": Number(1),
+    "media_count": Number(0),
+    "parent_id": Number(1),
+    "path": String("1/3"),
+    "sort_order": Number(1),
+    "title": String("Independent Chapter"),
+    "updated_at": String("2025-10-08T15:50:39.800823Z"),
+}

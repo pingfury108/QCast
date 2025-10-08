@@ -1,0 +1,17 @@
+---
+source: tests/requests/chapters.rs
+expression: child_chapter
+---
+Object {
+    "book_id": Number(1),
+    "created_at": String("2025-10-08T15:50:32Z"),
+    "description": String("Child description"),
+    "id": Number(2),
+    "level": Number(1),
+    "media_count": Number(0),
+    "parent_id": Number(1),
+    "path": String("1/2"),
+    "sort_order": Number(1),
+    "title": String("Child Chapter"),
+    "updated_at": String("2025-10-08T15:50:32.067894Z"),
+}

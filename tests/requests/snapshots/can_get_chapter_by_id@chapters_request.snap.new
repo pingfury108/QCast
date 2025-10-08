@@ -1,14 +1,18 @@
 ---
 source: tests/requests/chapters.rs
-assertion_line: 251
+assertion_line: 254
 expression: response_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-08T08:51:55Z"),
+    "created_at": String("2025-10-08T15:51:00Z"),
     "description": String("Test Description"),
     "id": Number(1),
+    "level": Number(0),
+    "media_count": Number(0),
+    "parent_id": Null,
+    "path": String("1"),
     "sort_order": Number(1),
     "title": String("Test Chapter"),
-    "updated_at": String("2025-10-08T08:51:55Z"),
+    "updated_at": String("2025-10-08T15:51:00.849174Z"),
 }

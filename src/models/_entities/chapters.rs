@@ -15,6 +15,10 @@ pub struct Model {
     pub description: Option<String>,
     pub sort_order: Option<i32>,
     pub book_id: i32,
+    pub parent_id: Option<i32>,
+    pub level: Option<i32>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub path: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -27,6 +31,16 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Books,
+    #[sea_orm(
+        belongs_to = "super::chapters::Entity",
+        from = "Column::ParentId",
+        to = "super::chapters::Column::Id",
+        on_update = "Cascade",
+        on_delete = "SetNull"
+    )]
+    Parent,
+    #[sea_orm(has_many = "super::chapters::Entity")]
+    Children,
     #[sea_orm(has_many = "super::medias::Entity")]
     Medias,
 }
@@ -40,5 +54,11 @@ impl Related<super::books::Entity> for Entity {
 impl Related<super::medias::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Medias.def()
+    }
+}
+
+impl Related<Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Children.def()
     }
 }

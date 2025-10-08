@@ -58,6 +58,7 @@ pub fn auth_header(token: &str) -> (HeaderName, HeaderValue) {
 }
 
 /// 创建公开的测试媒体记录
+#[allow(dead_code)]
 pub async fn create_public_media(
     ctx: &AppContext,
     book_id: i32,

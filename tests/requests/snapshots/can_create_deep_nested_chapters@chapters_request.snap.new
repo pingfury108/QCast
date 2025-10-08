@@ -1,0 +1,51 @@
+---
+source: tests/requests/chapters.rs
+assertion_line: 1039
+expression: tree
+---
+Array [
+    Object {
+        "book_id": Number(1),
+        "children": Array [
+            Object {
+                "book_id": Number(1),
+                "children": Array [
+                    Object {
+                        "book_id": Number(1),
+                        "children": Array [],
+                        "created_at": String("2025-10-08T15:51:04Z"),
+                        "description": Null,
+                        "id": Number(3),
+                        "level": Number(2),
+                        "media_count": Number(0),
+                        "parent_id": Number(2),
+                        "path": String("1/2/3"),
+                        "sort_order": Number(1),
+                        "title": String("Level 3 Chapter"),
+                        "updated_at": String("2025-10-08T15:51:04.133072Z"),
+                    },
+                ],
+                "created_at": String("2025-10-08T15:51:04Z"),
+                "description": Null,
+                "id": Number(2),
+                "level": Number(1),
+                "media_count": Number(0),
+                "parent_id": Number(1),
+                "path": String("1/2"),
+                "sort_order": Number(1),
+                "title": String("Level 2 Chapter"),
+                "updated_at": String("2025-10-08T15:51:04.129436Z"),
+            },
+        ],
+        "created_at": String("2025-10-08T15:51:04Z"),
+        "description": Null,
+        "id": Number(1),
+        "level": Number(0),
+        "media_count": Number(0),
+        "parent_id": Null,
+        "path": String("1"),
+        "sort_order": Number(1),
+        "title": String("Level 1 Chapter"),
+        "updated_at": String("2025-10-08T15:51:04.125234Z"),
+    },
+]

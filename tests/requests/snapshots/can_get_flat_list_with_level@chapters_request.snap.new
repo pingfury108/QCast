@@ -1,0 +1,35 @@
+---
+source: tests/requests/chapters.rs
+assertion_line: 907
+expression: flat_list
+---
+[
+    Object {
+        "book_id": Number(1),
+        "children": Array [],
+        "created_at": String("2025-10-08T15:51:06Z"),
+        "description": Null,
+        "id": Number(1),
+        "level": Number(0),
+        "media_count": Number(0),
+        "parent_id": Null,
+        "path": String("1"),
+        "sort_order": Number(1),
+        "title": String("Parent Chapter"),
+        "updated_at": String("2025-10-08T15:51:06.345136Z"),
+    },
+    Object {
+        "book_id": Number(1),
+        "children": Array [],
+        "created_at": String("2025-10-08T15:51:06Z"),
+        "description": Null,
+        "id": Number(2),
+        "level": Number(1),
+        "media_count": Number(0),
+        "parent_id": Number(1),
+        "path": String("1/2"),
+        "sort_order": Number(1),
+        "title": String("Child Chapter"),
+        "updated_at": String("2025-10-08T15:51:06.349450Z"),
+    },
+]

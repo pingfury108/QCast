@@ -1,14 +1,18 @@
 ---
 source: tests/requests/chapters.rs
-assertion_line: 525
+assertion_line: 528
 expression: moved_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-08T08:51:57Z"),
+    "created_at": String("2025-10-08T15:51:07Z"),
     "description": Null,
     "id": Number(1),
+    "level": Number(0),
+    "media_count": Number(0),
+    "parent_id": Null,
+    "path": String("1"),
     "sort_order": Number(2),
     "title": String("Chapter 1"),
-    "updated_at": String("2025-10-08T08:51:57.876438Z"),
+    "updated_at": String("2025-10-08T15:51:07.471686Z"),
 }
