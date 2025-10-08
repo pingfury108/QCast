@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, memo } from 'react'
 import Header from './Header'
 import Footer from './Footer'
 import { useCurrentUser } from '../hooks/useAuth'
@@ -7,7 +7,7 @@ interface DashboardLayoutProps {
   children: ReactNode
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
   // 在后台异步获取完整用户信息
   useCurrentUser();
 
@@ -17,3 +17,5 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     </div>
   )
 }
+
+export const DashboardLayout = memo(DashboardLayoutComponent);

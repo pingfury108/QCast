@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useBook, useUpdateBook } from '../hooks/useBooks'
+import { useChapters, useCreateChapter, useUpdateChapter, useDeleteChapter, useMoveChapterUp, useMoveChapterDown } from '../hooks/useChapters'
+import { useBookMedias, useToggleMediaPublish, useDeleteMedia } from '../hooks/useMedias'
 import type { Book } from '../hooks/useBooks'
+import type { Chapter } from '../services/chapters'
+import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
@@ -15,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 
 const updateBookSchema = z.object({
   title: z.string().min(1, '书名不能为空'),
@@ -23,20 +28,52 @@ const updateBookSchema = z.object({
   is_public: z.boolean().default(false)
 })
 
+const createChapterSchema = z.object({
+  title: z.string().min(1, '章节标题不能为空'),
+  description: z.string().optional()
+})
+
+const updateChapterSchema = z.object({
+  title: z.string().min(1, '章节标题不能为空'),
+  description: z.string().optional()
+})
+
 type UpdateBookForm = z.infer<typeof updateBookSchema>
+type CreateChapterForm = z.infer<typeof createChapterSchema>
+type UpdateChapterForm = z.infer<typeof updateChapterSchema>
 
 export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>()
   const bookId = parseInt(id)
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [chapterDialogOpen, setChapterDialogOpen] = useState(false)
+  const [editChapterDialogOpen, setEditChapterDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('media')
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
 
   const { data: book, isLoading, error } = useBook(bookId)
+  const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
+  const { data: medias = [], isLoading: mediasLoading } = useBookMedias(bookId)
   const updateBookMutation = useUpdateBook()
+  const createChapterMutation = useCreateChapter()
+  const updateChapterMutation = useUpdateChapter()
+  const deleteChapterMutation = useDeleteChapter()
+  const moveChapterUpMutation = useMoveChapterUp()
+  const moveChapterDownMutation = useMoveChapterDown()
+  const toggleMediaPublishMutation = useToggleMediaPublish()
+  const deleteMediaMutation = useDeleteMedia()
 
   const editForm = useForm<UpdateBookForm>({
     resolver: zodResolver(updateBookSchema)
+  })
+
+  const chapterForm = useForm<CreateChapterForm>({
+    resolver: zodResolver(createChapterSchema)
+  })
+
+  const editChapterForm = useForm<UpdateChapterForm>({
+    resolver: zodResolver(updateChapterSchema)
   })
 
   const handleEditBook = () => {
@@ -59,6 +96,62 @@ export default function BookDetailPage() {
     setEditDialogOpen(false)
   }
 
+  const handleCreateChapter = (data: CreateChapterForm) => {
+    if (!book) return
+    createChapterMutation.mutate({
+      bookId: book.id,
+      params: data
+    })
+    setChapterDialogOpen(false)
+    chapterForm.reset()
+  }
+
+  const handleEditChapter = (chapter: Chapter) => {
+    setEditingChapter(chapter)
+    editChapterForm.reset({
+      title: chapter.title,
+      description: chapter.description || ''
+    })
+    setEditChapterDialogOpen(true)
+  }
+
+  const handleUpdateChapter = (data: UpdateChapterForm) => {
+    if (!book || !editingChapter) return
+    updateChapterMutation.mutate({
+      bookId: book.id,
+      id: editingChapter.id,
+      params: data
+    })
+    setEditChapterDialogOpen(false)
+    setEditingChapter(null)
+  }
+
+  const handleDeleteChapter = (chapter: Chapter) => {
+    if (window.confirm(`确定要删除章节"${chapter.title}"吗？`)) {
+      if (!book) return
+      deleteChapterMutation.mutate({
+        bookId: book.id,
+        id: chapter.id
+      })
+    }
+  }
+
+  const handleMoveChapterUp = (chapter: Chapter) => {
+    if (!book) return
+    moveChapterUpMutation.mutate({
+      bookId: book.id,
+      id: chapter.id
+    })
+  }
+
+  const handleMoveChapterDown = (chapter: Chapter) => {
+    if (!book) return
+    moveChapterDownMutation.mutate({
+      bookId: book.id,
+      id: chapter.id
+    })
+  }
+
   const handleDeleteBook = () => {
     if (!book) return
     if (window.confirm(`确定要删除书籍"${book.title}"吗？`)) {
@@ -75,19 +168,30 @@ export default function BookDetailPage() {
     })
   }
 
-  // 模拟章节数据
-  const chapters = [
-    { id: 1, title: '第一章：介绍', media_count: 2 },
-    { id: 2, title: '第二章：主要内容', media_count: 3 },
-    { id: 3, title: '第三章：总结', media_count: 1 }
-  ]
+  const handleToggleMediaPublish = (media: Media) => {
+    toggleMediaPublishMutation.mutate(media.id)
+  }
 
-  // 模拟媒体数据
-  const medias = [
-    { id: 1, title: '第一集音频', file_type: 'audio', duration: '20:15', play_count: 123, is_public: true },
-    { id: 2, title: '第二集音频', file_type: 'audio', duration: '18:30', play_count: 45, is_public: false },
-    { id: 3, title: '视频内容', file_type: 'video', duration: '22:00', play_count: 89, is_public: true }
-  ]
+  const handleDeleteMedia = (media: Media) => {
+    if (window.confirm(`确定要删除媒体"${media.title}"吗？`)) {
+      deleteMediaMutation.mutate(media.id)
+    }
+  }
+
+  const handleCopyLink = (media: Media) => {
+    if (media.access_url) {
+      navigator.clipboard.writeText(media.access_url)
+        .then(() => toast.success('链接已复制到剪贴板'))
+        .catch(() => toast.error('复制链接失败'))
+    }
+  }
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '--:--'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   if (isLoading) {
     return (
@@ -193,31 +297,142 @@ export default function BookDetailPage() {
               </Button>
             </div>
 
-            <div className="grid gap-4">
-              {medias.map((media) => (
-                <div key={media.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      {media.file_type === 'audio' ? (
-                        <Music className="w-5 h-5 text-primary" />
-                      ) : (
-                        <div className="w-5 h-5 bg-muted rounded" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-medium">{media.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {media.duration} • 播放: {media.play_count}次
+            {mediasLoading ? (
+              <div className="text-center py-8">加载媒体中...</div>
+            ) : medias.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Music className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>暂无媒体文件</p>
+                <p className="text-sm">点击上方按钮上传第一个媒体文件</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {medias.map((media) => (
+                  <div key={media.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        {media.file_type === 'audio' ? (
+                          <Music className="w-5 h-5 text-primary" />
+                        ) : media.file_type === 'video' ? (
+                          <div className="w-5 h-5 bg-muted rounded flex items-center justify-center">
+                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 bg-muted rounded" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium">{media.title}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDuration(media.duration)} • 播放: {media.play_count}次
+                          {media.chapter_id && ' • 关联章节'}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2">
-                    {media.is_public ? (
-                      <Eye className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-gray-400" />
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {media.is_public ? (
+                        <Eye className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <EyeOff className="w-4 h-4 text-gray-400" />
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleCopyLink(media)}>
+                            <Copy className="w-4 h-4 mr-2" />
+                            复制链接
+                          </DropdownMenuItem>
+                          {media.qr_code_path && (
+                            <DropdownMenuItem>
+                              <QrCode className="w-4 h-4 mr-2" />
+                              查看二维码
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleToggleMediaPublish(media)}>
+                            {media.is_public ? (
+                              <>
+                                <EyeOff className="w-4 h-4 mr-2" />
+                                设为私密
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-4 h-4 mr-2" />
+                                设为公开
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMedia(media)}>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            删除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Chapters Tab */}
+          <TabsContent value="chapters" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">章节列表</h2>
+              <Button onClick={() => setChapterDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                新建章节
+              </Button>
+            </div>
+
+            {chaptersLoading ? (
+              <div className="text-center py-8">加载章节中...</div>
+            ) : chapters.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>暂无章节</p>
+                <p className="text-sm">点击上方按钮创建第一个章节</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {chapters.map((chapter, index) => (
+                  <div key={chapter.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex flex-col items-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveChapterUp(chapter)}
+                          disabled={index === 0}
+                          className="h-6 w-6 p-0"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveChapterDown(chapter)}
+                          disabled={index === chapters.length - 1}
+                          className="h-6 w-6 p-0"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{chapter.title}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {chapter.media_count} 个媒体文件
+                        </div>
+                      </div>
+                    </div>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -225,58 +440,20 @@ export default function BookDetailPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>编辑</DropdownMenuItem>
-                        <DropdownMenuItem>复制链接</DropdownMenuItem>
-                        <DropdownMenuItem>查看二维码</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">删除</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditChapter(chapter)}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          编辑
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteChapter(chapter)}>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          删除
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Chapters Tab */}
-          <TabsContent value="chapters" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">章节列表</h2>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                新建章节
-              </Button>
-            </div>
-
-            <div className="grid gap-3">
-              {chapters.map((chapter) => (
-                <div key={chapter.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{chapter.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {chapter.media_count} 个媒体文件
-                      </div>
-                    </div>
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>编辑</DropdownMenuItem>
-                      <DropdownMenuItem>移动</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">删除</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Settings Tab */}
@@ -371,6 +548,106 @@ export default function BookDetailPage() {
                   </Button>
                   <Button type="submit" disabled={updateBookMutation.isPending}>
                     {updateBookMutation.isPending ? '更新中...' : '更新'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Chapter Dialog */}
+        <Dialog open={chapterDialogOpen} onOpenChange={setChapterDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>新建章节</DialogTitle>
+              <DialogDescription>
+                为这本书创建新章节
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...chapterForm}>
+              <form onSubmit={chapterForm.handleSubmit(handleCreateChapter)} className="space-y-4">
+                <FormField
+                  control={chapterForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>章节标题</FormLabel>
+                      <FormControl>
+                        <Input placeholder="输入章节标题" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={chapterForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>章节描述</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="输入章节描述（可选）" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setChapterDialogOpen(false)}>
+                    取消
+                  </Button>
+                  <Button type="submit" disabled={createChapterMutation.isPending}>
+                    {createChapterMutation.isPending ? '创建中...' : '创建'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Chapter Dialog */}
+        <Dialog open={editChapterDialogOpen} onOpenChange={setEditChapterDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>编辑章节</DialogTitle>
+              <DialogDescription>
+                修改章节信息
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...editChapterForm}>
+              <form onSubmit={editChapterForm.handleSubmit(handleUpdateChapter)} className="space-y-4">
+                <FormField
+                  control={editChapterForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>章节标题</FormLabel>
+                      <FormControl>
+                        <Input placeholder="输入章节标题" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editChapterForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>章节描述</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="输入章节描述（可选）" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setEditChapterDialogOpen(false)}>
+                    取消
+                  </Button>
+                  <Button type="submit" disabled={updateChapterMutation.isPending}>
+                    {updateChapterMutation.isPending ? '更新中...' : '更新'}
                   </Button>
                 </div>
               </form>

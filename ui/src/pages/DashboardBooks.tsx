@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useBooks, useCreateBook, useUpdateBook, useDeleteBook } from '../hooks/useBooks'
-import type { Book } from '../hooks/useBooks'
+import { Link } from 'react-router-dom'
+import { useBooks, useCreateBook, useUpdateBook, useDeleteBook, useBookTree } from '../hooks/useBooks'
+import type { Book, BookTree } from '../hooks/useBooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Edit, Trash2, Eye, EyeOff, MoreHorizontal, ChevronRight, ChevronDown, QrCode, BookOpen, Music } from 'lucide-react'
@@ -28,7 +29,7 @@ type CreateBookForm = z.infer<typeof createBookSchema>
 
 // 树形节点组件
 const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
-  node: any
+  node: BookTree
   level?: number
   onEdit: (book: Book) => void
   onDelete: (book: Book) => void
@@ -36,21 +37,25 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
 }) => {
   const [isExpanded, setIsExpanded] = useState(level === 0)
 
-  const isBook = node.type === 'book'
-  const isMedia = node.type === 'media'
+  const book = node.book
 
   return (
     <div className="select-none">
-      <div
-        className={`flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors ${
-          level > 0 ? 'ml-' + (level * 8) : ''
-        }`}
-        style={{ marginLeft: level > 0 ? `${level * 2}rem` : '0' }}
-      >
+      <Link to={`/dashboard/books/${book.id}`}>
+        <div
+          className={`flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors ${
+            level > 0 ? 'ml-' + (level * 8) : ''
+          }`}
+          style={{ marginLeft: level > 0 ? `${level * 2}rem` : '0' }}
+        >
         <div className="flex items-center space-x-3">
           {node.children && node.children.length > 0 && (
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsExpanded(!isExpanded)
+              }}
               className="p-1 hover:bg-muted rounded"
             >
               {isExpanded ? (
@@ -62,66 +67,67 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic }: {
           )}
 
           <div className="flex items-center space-x-2">
-            {isBook && <BookOpen className="w-5 h-5 text-blue-600" />}
-            {isMedia && <Music className="w-5 h-5 text-green-600" />}
+            <BookOpen className="w-5 h-5 text-blue-600" />
 
-            <span className="font-medium">{node.title}</span>
-            {node.is_public ? (
+            <span className="font-medium">{book.title}</span>
+            {book.is_public ? (
               <Eye className="w-4 h-4 text-green-600" />
             ) : (
               <EyeOff className="w-4 h-4 text-gray-400" />
             )}
           </div>
-
-          {isMedia && (
-            <QrCode className="w-4 h-4 text-gray-400" />
-          )}
         </div>
 
         <div className="flex items-center space-x-2">
-          {isBook && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onEdit(node)}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  编辑
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onTogglePublic(node)}>
-                  {node.is_public ? (
-                    <>
-                      <EyeOff className="w-4 h-4 mr-2" />
-                      设为私密
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4 mr-2" />
-                      设为公开
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onDelete(node)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  删除
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit(book)}>
+                <Edit className="w-4 h-4 mr-2" />
+                编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onTogglePublic(book)}>
+                {book.is_public ? (
+                  <>
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    设为私密
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    设为公开
+                  </>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(book)}
+                className="text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                删除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </div>
+        </div>
+      </Link>
 
       {isExpanded && node.children && (
         <div className="mt-1">
-          {node.children.map((child: any, index: number) => (
+          {node.children.map((child, index) => (
             <TreeNode
-              key={child.id || index}
+              key={child.book.id || index}
               node={child}
               level={level + 1}
               onEdit={onEdit}
@@ -160,52 +166,12 @@ export default function DashboardBooks() {
     resolver: zodResolver(createBookSchema)
   })
 
-  // 构建树形数据结构
+  // 构建树形数据结构 - 使用真实的书籍树形结构
   const buildTreeData = (books: Book[]) => {
-    // 模拟一些数据，包括书籍和媒体
-    const treeData = books?.map(book => ({
-      id: book.id,
-      title: book.title,
-      type: 'book',
-      is_public: book.is_public,
-      description: book.description,
-      children: [
-        // 模拟子书籍
-        {
-          id: book.id + '_child1',
-          title: 'Season 1',
-          type: 'book',
-          is_public: true,
-          children: [
-            {
-              id: book.id + '_media1',
-              title: 'Episode 1',
-              type: 'media',
-              is_public: true
-            },
-            {
-              id: book.id + '_media2',
-              title: 'Episode 2',
-              type: 'media',
-              is_public: false
-            }
-          ]
-        },
-        {
-          id: book.id + '_child2',
-          title: 'Season 2',
-          type: 'book',
-          is_public: true,
-          children: [
-            {
-              id: book.id + '_media3',
-              title: 'Episode 3',
-              type: 'media',
-              is_public: true
-            }
-          ]
-        }
-      ]
+    // 只返回顶级书籍，不需要模拟的子章节
+    const treeData = books?.filter(book => !book.parent_id).map(book => ({
+      book: book,
+      children: [] // 初始为空，后续可以通过 useBookTree 获取子书籍
     })) || []
 
     return treeData
@@ -213,9 +179,9 @@ export default function DashboardBooks() {
 
   const treeData = buildTreeData(books)
 
-  const filteredTreeData = treeData.filter(book =>
-    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    book.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTreeData = treeData.filter(treeNode =>
+    treeNode.book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    treeNode.book.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const handleCreateBook = (data: CreateBookForm) => {
@@ -376,7 +342,7 @@ export default function DashboardBooks() {
             <div className="p-4 space-y-1">
               {filteredTreeData.map((node) => (
                 <TreeNode
-                  key={node.id}
+                  key={node.book.id}
                   node={node}
                   onEdit={handleEditBook}
                   onDelete={handleDeleteBook}

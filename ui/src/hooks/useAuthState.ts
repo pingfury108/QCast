@@ -7,25 +7,24 @@ export function useAuthState() {
   useEffect(() => {
     const checkAuthState = () => {
       const newState = getStoredAuthState();
-      console.log('认证状态检查:', {
-        isAuthenticated: newState.isAuthenticated,
-        hasToken: !!newState.token,
-        hasUser: !!newState.user,
-        user: newState.user
+      // 只有状态真正变化时才更新
+      setAuthState(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(newState)) {
+          return prev; // 状态没有变化，不更新
+        }
+        return newState;
       });
-      setAuthState(newState);
     };
 
     // 监听存储变化
     const handleStorageChange = (e: StorageEvent) => {
-      console.log('存储变化事件:', e.key);
       if (e.key === 'qcast_token' || e.key === 'qcast_user') {
         checkAuthState();
       }
     };
 
-    // 定期检查认证状态（处理跨标签页同步）
-    const interval = setInterval(checkAuthState, 2000);
+    // 降低检查频率（处理跨标签页同步）
+    const interval = setInterval(checkAuthState, 10000); // 从2秒改为10秒
 
     window.addEventListener('storage', handleStorageChange);
 

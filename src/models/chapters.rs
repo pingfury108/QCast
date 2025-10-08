@@ -43,6 +43,30 @@ impl Model {
             .await
     }
 
+    /// 获取带媒体计数的章节
+    pub async fn find_by_book_with_media_count(db: &DatabaseConnection, book_id: i32) -> Result<Vec<(Model, i64)>, DbErr> {
+        use crate::models::_entities::medias;
+        use sea_orm::JoinType;
+
+        let chapters = Entity::find()
+            .filter(Column::BookId.eq(book_id))
+            .order_by_asc(Column::SortOrder)
+            .order_by_asc(Column::CreatedAt)
+            .all(db)
+            .await?;
+
+        let mut result = Vec::new();
+        for chapter in chapters {
+            let media_count = medias::Entity::find()
+                .filter(medias::Column::ChapterId.eq(chapter.id))
+                .count(db)
+                .await?;
+            result.push((chapter, media_count as i64));
+        }
+
+        Ok(result)
+    }
+
     /// 搜索章节
     pub async fn search(
         db: &DatabaseConnection,

@@ -139,12 +139,13 @@ export function useAutoAuth() {
 
 // 获取完整用户信息的 hook（在后台异步调用）
 export function useCurrentUser() {
+  const authState = getStoredAuthState();
+
   return useQuery({
-    queryKey: ['currentUser'],
+    queryKey: ['currentUser', authState.token], // 将 token 加入依赖
     queryFn: async () => {
       try {
         const currentUser = await authService.getCurrentUser();
-        console.log('获取到完整用户信息:', currentUser);
 
         // 更新本地存储的用户信息
         const user = {
@@ -165,8 +166,9 @@ export function useCurrentUser() {
         return null;
       }
     },
-    enabled: getStoredAuthState().isAuthenticated, // 只有在已认证时才调用
-    staleTime: 5 * 60 * 1000, // 5 分钟
-    retry: 2, // 失败时重试 2 次
+    enabled: authState.isAuthenticated && !!authState.token, // 更严格的条件
+    staleTime: 10 * 60 * 1000, // 10 分钟，减少请求频率
+    retry: 1, // 减少重试次数
+    refetchOnWindowFocus: false, // 窗口聚焦时不自动刷新
   });
 }

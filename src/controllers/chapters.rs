@@ -69,8 +69,10 @@ pub async fn list(
         .await?
         .ok_or_else(|| Error::NotFound)?;
 
-    let chapters = Model::find_by_book(&ctx.db, book_id).await?;
-    let responses: Vec<ChapterResponse> = chapters.into_iter().map(ChapterResponse::from).collect();
+    let chapters_with_media = Model::find_by_book_with_media_count(&ctx.db, book_id).await?;
+    let responses: Vec<ChapterResponse> = chapters_with_media.into_iter().map(|(chapter, media_count)| {
+        ChapterResponse::from_with_media_count(chapter, media_count)
+    }).collect();
 
     format::json(responses)
 }
