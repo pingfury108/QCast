@@ -11,7 +11,6 @@ import DashboardPage from '../pages/DashboardPage';
 import DashboardBooks from '../pages/DashboardBooks';
 import BookDetailPage from '../pages/BookDetailPage';
 import UploadPage from '../pages/UploadPage';
-import MediaPage from '../pages/MediaPage';
 import PublicMediaPage from '../pages/PublicMediaPage';
 
 // 创建路由配置
@@ -73,14 +72,6 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <UploadPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'dashboard/media',
-        element: (
-          <ProtectedRoute>
-            <MediaPage />
           </ProtectedRoute>
         ),
       },

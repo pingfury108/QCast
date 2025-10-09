@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useBook, useUpdateBook } from '../hooks/useBooks'
 import {
@@ -18,7 +18,11 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw } from 'lucide-react'
+import { EditMediaDialog } from '../components/EditMediaDialog'
+import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
+import { mediasService } from '../services/medias'
+import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import ChapterTree from '../components/ChapterTree'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -66,6 +70,7 @@ type UploadMediaForm = z.infer<typeof uploadMediaSchema>
 export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>()
   const bookId = parseInt(id)
+  const queryClient = useQueryClient()
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false)
@@ -79,6 +84,10 @@ export default function BookDetailPage() {
   const [activeTab, setActiveTab] = useState('media')
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set())
+  const [editingMedia, setEditingMedia] = useState<Media | null>(null)
+  const [editMediaDialogOpen, setEditMediaDialogOpen] = useState(false)
+  const [replacingMedia, setReplacingMedia] = useState<Media | null>(null)
+  const [replaceMediaDialogOpen, setReplaceMediaDialogOpen] = useState(false)
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
@@ -110,6 +119,15 @@ export default function BookDetailPage() {
   const uploadMediaForm = useForm<UploadMediaForm>({
     resolver: zodResolver(uploadMediaSchema)
   })
+
+  // 构建章节 ID 到章节路径的映射
+  const chapterPathMap = useMemo(() => {
+    const map = new Map<number, string>()
+    chapters.forEach(chapter => {
+      map.set(chapter.id, chapter.path || chapter.title)
+    })
+    return map
+  }, [chapters])
 
   const handleEditBook = () => {
     if (!book) return
@@ -295,6 +313,25 @@ export default function BookDetailPage() {
     if (window.confirm(`确定要删除媒体"${media.title}"吗？`)) {
       deleteMediaMutation.mutate(media.id)
     }
+  }
+
+  const handleEditMedia = (media: Media) => {
+    setEditingMedia(media)
+    setEditMediaDialogOpen(true)
+  }
+
+  const handleSaveEditMedia = async (mediaId: number, data: any) => {
+    await mediasService.updateMedia(mediaId, data)
+    await queryClient.invalidateQueries({ queryKey: ['book-medias', bookId] })
+  }
+
+  const handleReplaceFile = (media: Media) => {
+    setReplacingMedia(media)
+    setReplaceMediaDialogOpen(true)
+  }
+
+  const handleReplaceSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['book-medias', bookId] })
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,7 +554,9 @@ export default function BookDetailPage() {
                         <div className="font-medium">{media.title}</div>
                         <div className="text-sm text-muted-foreground">
                           {formatDuration(media.duration)} • 播放: {media.play_count}次
-                          {media.chapter_id && ' • 关联章节'}
+                          {media.chapter_id && chapterPathMap.has(media.chapter_id) && (
+                            <> • {chapterPathMap.get(media.chapter_id)}</>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -535,6 +574,14 @@ export default function BookDetailPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditMedia(media)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            编辑
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleReplaceFile(media)}>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            替换文件
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleCopyLink(media)}>
                             <Copy className="w-4 h-4 mr-2" />
                             复制链接
@@ -995,6 +1042,23 @@ export default function BookDetailPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Media Dialog */}
+        <EditMediaDialog
+          media={editingMedia}
+          open={editMediaDialogOpen}
+          onOpenChange={setEditMediaDialogOpen}
+          onSave={handleSaveEditMedia}
+          chapters={chapters}
+        />
+
+        {/* Replace Media File Dialog */}
+        <ReplaceMediaFileDialog
+          media={replacingMedia}
+          open={replaceMediaDialogOpen}
+          onOpenChange={setReplaceMediaDialogOpen}
+          onSuccess={handleReplaceSuccess}
+        />
       </div>
     </DashboardLayout>
   )

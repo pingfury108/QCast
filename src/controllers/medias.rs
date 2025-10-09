@@ -74,6 +74,27 @@ pub async fn update(
     if let Some(is_public) = params.is_public {
         item.is_public = Set(is_public);
     }
+    if let Some(chapter_id) = params.chapter_id {
+        // 如果提供了 chapter_id，验证章节是否存在且属于同一个书籍
+        if chapter_id > 0 {
+            use crate::models::_entities::chapters;
+            let chapter = chapters::Entity::find_by_id(chapter_id)
+                .one(&ctx.db)
+                .await?
+                .ok_or_else(|| Error::Message("章节不存在".to_string()))?;
+
+            // 验证章节属于同一个书籍
+            let book_id = item.book_id.as_ref();
+            if chapter.book_id != *book_id {
+                return Err(Error::Message("章节不属于该媒体所在的书籍".to_string()));
+            }
+
+            item.chapter_id = Set(Some(chapter_id));
+        } else {
+            // chapter_id 为 0 或负数时，表示移除章节关联
+            item.chapter_id = Set(None);
+        }
+    }
 
     let item = item.update(&ctx.db).await?;
 
@@ -362,12 +383,16 @@ pub async fn replace_file(
     let old_file_path = media.file_path.clone();
     let old_file_version = media.file_version;
 
-    let mut file_data: Option<Vec<u8>> = None;
+    let mut temp_file_path: Option<std::path::PathBuf> = None;
+    let mut file_size: Option<u64> = None;
     let mut filename: Option<String> = None;
     let mut content_type: Option<String> = None;
 
+    // 设置最大文件大小为 2GB
+    const MAX_FILE_SIZE: u64 = 2_147_483_648;
+
     // 解析 multipart 数据
-    while let Some(field) = multipart
+    while let Some(mut field) = multipart
         .next_field()
         .await
         .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
@@ -375,41 +400,82 @@ pub async fn replace_file(
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            filename = field.file_name().map(|s| s.to_string());
-            content_type = field.content_type().map(|s| s.to_string());
+            let field_filename = field.file_name().map(|s| s.to_string());
+            let field_content_type = field.content_type().map(|s| s.to_string());
 
-            let data = field
-                .bytes()
+            // 验证必需信息
+            let fname = field_filename.clone()
+                .ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
+            let ctype = field_content_type.clone()
+                .ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
+
+            // 先验证文件类型
+            let storage = StorageService::new("uploads");
+            storage.validate_file_type(&fname, &ctype)?;
+
+            // 创建临时文件并流式写入
+            use tokio::io::AsyncWriteExt;
+            let temp_dir = std::env::temp_dir();
+            let temp_filename = format!("upload_{}.tmp", uuid::Uuid::new_v4());
+            let temp_path = temp_dir.join(&temp_filename);
+
+            let mut file = tokio::fs::File::create(&temp_path)
                 .await
-                .map_err(|e| Error::Message(format!("读取文件数据失败: {}", e)))?;
+                .map_err(|e| Error::Message(format!("创建临时文件失败: {}", e)))?;
 
-            // 限制文件大小 (500MB)
-            if data.len() > 524_288_000 {
-                return Err(Error::Message("文件大小超过限制 (500MB)".to_string()));
+            let mut total_size: u64 = 0;
+
+            // 逐块读取并写入
+            while let Some(chunk) = field.chunk().await
+                .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
+            {
+                total_size += chunk.len() as u64;
+
+                // 检查大小限制
+                if total_size > MAX_FILE_SIZE {
+                    // 清理临时文件
+                    let _ = tokio::fs::remove_file(&temp_path).await;
+                    return Err(Error::Message(format!(
+                        "文件大小超过限制 ({}GB)",
+                        MAX_FILE_SIZE / 1_073_741_824
+                    )));
+                }
+
+                // 写入块
+                file.write_all(&chunk)
+                    .await
+                    .map_err(|e| Error::Message(format!("写入数据失败: {}", e)))?;
             }
 
-            file_data = Some(data.to_vec());
+            // 确保所有数据都写入磁盘
+            file.flush()
+                .await
+                .map_err(|e| Error::Message(format!("刷新缓冲区失败: {}", e)))?;
+
+            temp_file_path = Some(temp_path);
+            file_size = Some(total_size);
+            filename = Some(fname);
+            content_type = Some(ctype);
             break;
         }
     }
 
     // 验证必需字段
-    let file_data = file_data.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let temp_path = temp_file_path
+        .ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let file_size = file_size
+        .ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
     let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
     let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
 
-    // 使用存储服务替换文件
+    // 使用存储服务移动临时文件到永久位置（替换旧文件）
     let storage = StorageService::new("uploads");
     let uploaded_file = storage
-        .replace_file(
-            user.id,
-            book_id,
-            std::path::Path::new(&old_file_path),
-            &filename,
-            &content_type,
-            &file_data,
-        )
+        .move_temp_file(user.id, book_id, &temp_path, &filename, &content_type, file_size)
         .await?;
+
+    // 删除旧文件
+    let _ = storage.delete_file(std::path::Path::new(&old_file_path)).await;
 
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;

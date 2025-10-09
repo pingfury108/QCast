@@ -35,6 +35,7 @@ export interface UpdateMediaParams {
   title?: string
   description?: string
   is_public?: boolean
+  chapter_id?: number
 }
 
 export interface UploadMediaParams {

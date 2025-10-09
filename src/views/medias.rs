@@ -97,6 +97,7 @@ pub struct UpdateMediaParams {
     pub title: Option<String>,
     pub description: Option<String>,
     pub is_public: Option<bool>,
+    pub chapter_id: Option<i32>,
 }
 
 /// 媒体上传响应
