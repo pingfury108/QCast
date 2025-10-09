@@ -328,7 +328,6 @@ export default function DashboardBooks() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">我的书籍</h1>
-          <p className="text-muted-foreground">管理你的播客、有声书和媒体内容</p>
         </div>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -436,7 +435,7 @@ export default function DashboardBooks() {
       </div>
 
       {/* Search */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 my-6">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
