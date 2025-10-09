@@ -18,7 +18,7 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw, Video } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw, Video, Download } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { MediaPlayer } from '../components/MediaPlayer'
@@ -36,7 +36,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
+import ExcelJS from 'exceljs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const updateBookSchema = z.object({
@@ -362,6 +362,191 @@ export default function BookDetailPage() {
     }
   }
 
+  // 将 SVG 转换为 PNG（通过 API 获取）
+  const convertSvgToPng = async (mediaId: number): Promise<ArrayBuffer> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 使用 API 接口获取二维码（与查看二维码相同的方式）
+        const response = await api.get(`/media/${mediaId}/qrcode`, {
+          responseType: 'blob'
+        })
+
+        // 读取 blob 为文本
+        const blob = response.data as Blob
+        const svgText = await blob.text()
+
+        // 创建一个图片对象加载 SVG
+        const img = new Image()
+
+        // 创建 blob URL
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
+        const url = URL.createObjectURL(svgBlob)
+
+        img.onload = () => {
+          try {
+            // 创建 canvas
+            const canvas = document.createElement('canvas')
+            canvas.width = 300
+            canvas.height = 300
+            const ctx = canvas.getContext('2d')
+
+            if (!ctx) {
+              reject(new Error('无法创建 canvas context'))
+              return
+            }
+
+            // 绘制白色背景
+            ctx.fillStyle = 'white'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+            // 绘制图片到 canvas
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+            // 转换为 PNG blob
+            canvas.toBlob(async (blob) => {
+              URL.revokeObjectURL(url)
+              if (blob) {
+                const arrayBuffer = await blob.arrayBuffer()
+                resolve(arrayBuffer)
+              } else {
+                reject(new Error('转换 PNG 失败'))
+              }
+            }, 'image/png', 1.0)
+          } catch (error) {
+            URL.revokeObjectURL(url)
+            reject(error)
+          }
+        }
+
+        img.onerror = (e) => {
+          URL.revokeObjectURL(url)
+          reject(new Error('加载 SVG 失败'))
+        }
+
+        img.src = url
+
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  // 导出二维码到 Excel
+  const handleExportQRCodes = async () => {
+    if (!book || !medias || medias.length === 0) {
+      toast.error('没有可导出的媒体')
+      return
+    }
+
+    try {
+      toast.loading('正在生成 Excel，请稍候...')
+
+      // 创建工作簿
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('二维码列表')
+
+      // 设置列
+      worksheet.columns = [
+        { header: '序号', key: 'index', width: 8 },
+        { header: '书籍名称', key: 'bookName', width: 25 },
+        { header: '章节名称', key: 'chapterName', width: 25 },
+        { header: '媒体名称', key: 'mediaName', width: 35 },
+        { header: '访问链接', key: 'url', width: 60 },
+        { header: '二维码', key: 'qrcode', width: 30 }
+      ]
+
+      // 设置表头样式
+      worksheet.getRow(1).font = { bold: true }
+      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+      worksheet.getRow(1).height = 25
+
+      // 添加数据
+      for (let i = 0; i < medias.length; i++) {
+        const media = medias[i]
+        const chapterName = media.chapter_id ? getChapterDisplayName(media.chapter_id) : '无章节'
+        const rowIndex = i + 2 // 第一行是表头
+
+        // 添加基础数据
+        const row = worksheet.addRow({
+          index: i + 1,
+          bookName: book.title,
+          chapterName: chapterName,
+          mediaName: media.title,
+          url: media.access_url || ''
+        })
+
+        // 设置行高以容纳二维码
+        row.height = 120
+
+        // 如果有二维码，嵌入图片
+        // 使用 qr_code_path 字段判断是否存在二维码
+        if (media.qr_code_path) {
+          try {
+            // 将 SVG 转换为 PNG，传入 media.id
+            const arrayBuffer = await convertSvgToPng(media.id)
+
+            // 添加图片到工作簿
+            const imageId = workbook.addImage({
+              buffer: arrayBuffer,
+              extension: 'png',
+            })
+
+            // 将图片添加到单元格
+            worksheet.addImage(imageId, {
+              tl: { col: 5, row: rowIndex - 1 }, // 二维码列
+              ext: { width: 100, height: 100 }
+            })
+          } catch (error) {
+            console.error('获取二维码失败:', error)
+            // 如果获取失败，在单元格中显示文字
+            worksheet.getCell(rowIndex, 6).value = '无法加载'
+          }
+        } else {
+          worksheet.getCell(rowIndex, 6).value = '未生成'
+        }
+
+        // 设置单元格对齐方式
+        row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
+      }
+
+      // 设置所有单元格边框
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        })
+      })
+
+      // 生成文件
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      })
+
+      // 生成文件名
+      const fileName = `${book.title}-二维码导出-${new Date().toISOString().split('T')[0]}.xlsx`
+
+      // 下载文件
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      link.click()
+      window.URL.revokeObjectURL(url)
+
+      toast.dismiss()
+      toast.success('导出成功！')
+    } catch (error) {
+      toast.dismiss()
+      toast.error('导出失败: ' + (error instanceof Error ? error.message : '未知错误'))
+      console.error('导出失败:', error)
+    }
+  }
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -548,10 +733,20 @@ export default function BookDetailPage() {
           <TabsContent value="media" className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">媒体列表</h2>
-              <Button onClick={() => setUploadMediaDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                上传媒体
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportQRCodes}
+                  disabled={medias.length === 0}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  导出二维码
+                </Button>
+                <Button onClick={() => setUploadMediaDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  上传媒体
+                </Button>
+              </div>
             </div>
 
             {mediasLoading ? (
@@ -715,16 +910,6 @@ export default function BookDetailPage() {
                     checked={book.is_public}
                     onCheckedChange={handleTogglePublic}
                   />
-                </div>
-
-                <div className="p-4 border rounded-lg">
-                  <div className="font-medium mb-2">书籍信息</div>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p>ID: {book.id}</p>
-                    <p>用户ID: {book.user_id}</p>
-                    <p>创建时间: {new Date(book.created_at).toLocaleString()}</p>
-                    <p>更新时间: {new Date(book.updated_at).toLocaleString()}</p>
-                  </div>
                 </div>
               </div>
             </div>
