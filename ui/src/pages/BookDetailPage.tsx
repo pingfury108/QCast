@@ -11,13 +11,14 @@ import {
   useCreateChildChapter,
   useMoveChapter
 } from '../hooks/useChapters'
-import { useBookMedias, useToggleMediaPublish, useDeleteMedia } from '../hooks/useMedias'
+import { useBookMedias, useToggleMediaPublish, useDeleteMedia, useUploadMedia } from '../hooks/useMedias'
 import type { Book } from '../hooks/useBooks'
 import type { Chapter, ChapterTree } from '../services/chapters'
 import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode } from 'lucide-react'
+import { api } from '../lib/api'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import ChapterTree from '../components/ChapterTree'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -30,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const updateBookSchema = z.object({
   title: z.string().min(1, '书名不能为空'),
@@ -48,9 +51,17 @@ const updateChapterSchema = z.object({
   description: z.string().optional()
 })
 
+const uploadMediaSchema = z.object({
+  title: z.string().min(1, '媒体标题不能为空'),
+  description: z.string().optional(),
+  chapter_id: z.string().optional(),
+  file: z.any().refine((file) => file instanceof File, '请选择文件')
+})
+
 type UpdateBookForm = z.infer<typeof updateBookSchema>
 type CreateChapterForm = z.infer<typeof createChapterSchema>
 type UpdateChapterForm = z.infer<typeof updateChapterSchema>
+type UploadMediaForm = z.infer<typeof uploadMediaSchema>
 
 export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -59,6 +70,12 @@ export default function BookDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [chapterDialogOpen, setChapterDialogOpen] = useState(false)
   const [editChapterDialogOpen, setEditChapterDialogOpen] = useState(false)
+  const [uploadMediaDialogOpen, setUploadMediaDialogOpen] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [qrCodeMedia, setQrCodeMedia] = useState<Media | null>(null)
   const [activeTab, setActiveTab] = useState('media')
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set())
@@ -76,6 +93,7 @@ export default function BookDetailPage() {
   const moveChapterMutation = useMoveChapter()
   const toggleMediaPublishMutation = useToggleMediaPublish()
   const deleteMediaMutation = useDeleteMedia()
+  const uploadMediaMutation = useUploadMedia()
 
   const editForm = useForm<UpdateBookForm>({
     resolver: zodResolver(updateBookSchema)
@@ -87,6 +105,10 @@ export default function BookDetailPage() {
 
   const editChapterForm = useForm<UpdateChapterForm>({
     resolver: zodResolver(updateChapterSchema)
+  })
+
+  const uploadMediaForm = useForm<UploadMediaForm>({
+    resolver: zodResolver(uploadMediaSchema)
   })
 
   const handleEditBook = () => {
@@ -275,11 +297,77 @@ export default function BookDetailPage() {
     }
   }
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      uploadMediaForm.setValue('file', file)
+      // 自动填充文件名作为标题
+      if (!uploadMediaForm.getValues('title')) {
+        uploadMediaForm.setValue('title', file.name.replace(/\.[^/.]+$/, ''))
+      }
+    }
+  }
+
+  const handleUploadMedia = async (data: UploadMediaForm) => {
+    if (!book || !selectedFile) return
+
+    setUploadProgress(0)
+
+    try {
+      await uploadMediaMutation.mutateAsync({
+        params: {
+          title: data.title,
+          description: data.description,
+          book_id: book.id,
+          chapter_id: data.chapter_id && data.chapter_id !== "0" ? parseInt(data.chapter_id) : undefined,
+          file: selectedFile
+        },
+        onProgress: setUploadProgress
+      })
+
+      // 重置表单和状态
+      uploadMediaForm.reset()
+      setSelectedFile(null)
+      setUploadProgress(0)
+      setUploadMediaDialogOpen(false)
+    } catch (error) {
+      // 错误已经在 hook 中处理
+      setUploadProgress(0)
+    }
+  }
+
   const handleCopyLink = (media: Media) => {
     if (media.access_url) {
       navigator.clipboard.writeText(media.access_url)
         .then(() => toast.success('链接已复制到剪贴板'))
         .catch(() => toast.error('复制链接失败'))
+    }
+  }
+
+  const handleViewQRCode = async (media: Media) => {
+    setQrCodeMedia(media)
+    setQrCodeDialogOpen(true)
+    setQrCodeUrl(null)
+
+    try {
+      // 使用配置好的 api 实例请求二维码数据，自动携带认证 token
+      const response = await api.get(`/media/${media.id}/qrcode`, {
+        responseType: 'blob' // 接收二进制数据
+      })
+
+      // 创建 blob URL
+      const blob = new Blob([response.data], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      setQrCodeUrl(url)
+
+      // 清理 URL 对象
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 60000) // 1分钟后清理
+    } catch (error) {
+      console.error('获取二维码失败:', error)
+      setQrCodeUrl(null)
     }
   }
 
@@ -395,7 +483,7 @@ export default function BookDetailPage() {
           <TabsContent value="media" className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">媒体列表</h2>
-              <Button>
+              <Button onClick={() => setUploadMediaDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 上传媒体
               </Button>
@@ -452,7 +540,7 @@ export default function BookDetailPage() {
                             复制链接
                           </DropdownMenuItem>
                           {media.qr_code_path && (
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewQRCode(media)}>
                               <QrCode className="w-4 h-4 mr-2" />
                               查看二维码
                             </DropdownMenuItem>
@@ -719,6 +807,192 @@ export default function BookDetailPage() {
                 </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Upload Media Dialog */}
+        <Dialog open={uploadMediaDialogOpen} onOpenChange={setUploadMediaDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>上传媒体</DialogTitle>
+              <DialogDescription>
+                上传音频、视频或其他媒体文件到当前书籍
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...uploadMediaForm}>
+              <form onSubmit={uploadMediaForm.handleSubmit(handleUploadMedia)} className="space-y-4">
+                <FormField
+                  control={uploadMediaForm.control}
+                  name="file"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>选择文件</FormLabel>
+                      <FormControl>
+                        <div className="space-y-2">
+                          <Input
+                            type="file"
+                            accept="audio/*,video/*,image/*"
+                            onChange={handleFileSelect}
+                          />
+                          {selectedFile && (
+                            <div className="text-sm text-muted-foreground">
+                              已选择: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                            </div>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={uploadMediaForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>媒体标题</FormLabel>
+                      <FormControl>
+                        <Input placeholder="输入媒体标题" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={uploadMediaForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>媒体描述</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="输入媒体描述（可选）" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={uploadMediaForm.control}
+                  name="chapter_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>关联章节（可选）</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="选择关联的章节" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0">不关联章节</SelectItem>
+                          {chapters.map((chapter) => (
+                            <SelectItem key={chapter.id} value={chapter.id.toString()}>
+                              {chapter.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>上传进度</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} />
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setUploadMediaDialogOpen(false)
+                      uploadMediaForm.reset()
+                      setSelectedFile(null)
+                      setUploadProgress(0)
+                    }}
+                  >
+                    取消
+                  </Button>
+                  <Button type="submit" disabled={uploadMediaMutation.isPending || !selectedFile}>
+                    {uploadMediaMutation.isPending ? '上传中...' : '上传'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* QR Code Dialog */}
+        <Dialog open={qrCodeDialogOpen} onOpenChange={setQrCodeDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>媒体二维码</DialogTitle>
+              <DialogDescription>
+                扫描二维码访问媒体文件
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center space-y-4">
+              {qrCodeMedia && (
+                <>
+                  <div className="text-center">
+                    <p className="font-medium">{qrCodeMedia.title}</p>
+                    <p className="text-sm text-muted-foreground">{qrCodeMedia.file_name}</p>
+                  </div>
+
+                  {qrCodeUrl ? (
+                    <div className="relative">
+                      <img
+                        src={qrCodeUrl}
+                        alt="媒体二维码"
+                        className="w-64 h-64 border rounded-lg"
+                      />
+                      {qrCodeMedia.access_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="absolute -bottom-2 -right-2"
+                          onClick={() => navigator.clipboard.writeText(qrCodeMedia.access_url!)}
+                        >
+                          <Copy className="w-4 h-4 mr-1" />
+                          复制链接
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-64 h-64 bg-gray-100 flex items-center justify-center">
+                      <p className="text-muted-foreground">二维码加载失败</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex justify-end w-full pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // 清理 blob URL
+                    if (qrCodeUrl && qrCodeUrl.startsWith('blob:')) {
+                      URL.revokeObjectURL(qrCodeUrl)
+                    }
+                    setQrCodeDialogOpen(false)
+                    setQrCodeUrl(null)
+                    setQrCodeMedia(null)
+                  }}
+                >
+                  关闭
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

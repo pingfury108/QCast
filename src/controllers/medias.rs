@@ -12,6 +12,7 @@ use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
 use crate::models::users;
 use crate::services::storage::StorageService;
 use crate::services::qrcode::QRCODE_SERVICE;
+use crate::services::audio_metadata::AUDIO_METADATA_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
@@ -233,6 +234,20 @@ pub async fn upload(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
+    // 提取音频元数据（包含时长）
+    let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
+        &uploaded_file.path.to_string_lossy(),
+        &content_type
+    );
+    let duration = metadata.duration;
+
+    // 记录音频时长提取结果
+    if duration.is_some() {
+        tracing::info!("音频文件时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
+    } else if content_type.starts_with("audio/") {
+        tracing::warn!("音频文件时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+    }
+
     // 生成访问令牌
     let access_token = Uuid::new_v4().to_string();
 
@@ -246,7 +261,7 @@ pub async fn upload(
         file_type: Set(file_type),
         file_path: Set(uploaded_file.path.to_string_lossy().to_string()),
         file_size: Set(Some(uploaded_file.size as i64)),
-        duration: Set(None), // 暂时为空，后续可以添加媒体处理
+        duration: Set(duration), // 使用提取的音频时长
         mime_type: Set(Some(content_type)),
         access_token: Set(access_token.clone()),
         access_url: Set(Some(format!(
@@ -349,12 +364,25 @@ pub async fn replace_file(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
+    // 提取音频元数据（包含时长）
+    let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
+        &uploaded_file.path.to_string_lossy(),
+        &content_type
+    );
+
+    // 记录音频时长提取结果
+    if metadata.duration.is_some() {
+        tracing::info!("音频文件替换后时长提取成功: {}秒 - 文件: {:?}", metadata.duration.unwrap(), filename);
+    } else if content_type.starts_with("audio/") {
+        tracing::warn!("音频文件替换后时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+    }
+
     // 更新媒体记录（保持 access_token 不变）
     let mut active_model: ActiveModel = media.into();
     active_model.file_type = Set(file_type);
     active_model.file_path = Set(uploaded_file.path.to_string_lossy().to_string());
     active_model.file_size = Set(Some(uploaded_file.size as i64));
-    active_model.duration = Set(None); // 暂时重置时长，后续可以重新提取
+    active_model.duration = Set(metadata.duration); // 使用提取的时长
     active_model.mime_type = Set(Some(content_type));
     active_model.file_version = Set(old_file_version + 1);
     active_model.original_filename = Set(Some(filename));
@@ -430,33 +458,36 @@ pub async fn get_qrcode(
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     let media = load_item(&ctx, id, user.id).await?;
 
-    // 如果没有二维码，生成一个
-    let qrcode_path = if let Some(ref path) = media.qr_code_path {
-        path.clone()
-    } else {
-        // 生成二维码
-        let access_url = media.access_url.as_ref()
-            .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
+    // 获取访问链接
+    let access_url = media.access_url.as_ref()
+        .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
 
+    // 生成二维码 SVG 字符串
+    let svg_data = QRCODE_SERVICE.generate_qrcode_svg_string(access_url)?;
+
+    // 如果这是第一次请求，保存文件并更新记录（可选）
+    if media.qr_code_path.is_none() {
         let qrcode_relative_path = QRCODE_SERVICE
             .generate_media_qrcode(media.id, access_url)
             .await?;
 
-        // 更新媒体记录
         let mut active_model: ActiveModel = media.into();
-        active_model.qr_code_path = Set(Some(qrcode_relative_path.clone()));
+        active_model.qr_code_path = Set(Some(qrcode_relative_path));
         let _updated_media = active_model.update(&ctx.db).await?;
+    }
 
-        qrcode_relative_path
-    };
+    // 直接返回二维码图片数据
+    use axum::http::{header, StatusCode};
+    use axum::body::Body;
 
-    format::json(serde_json::json!({
-        "qrcode_path": qrcode_path,
-        "qrcode_url": format!("{}/{}",
-            ctx.config.server.full_url(),
-            qrcode_path
-        )
-    }))
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/svg+xml")
+        .header(header::CACHE_CONTROL, "public, max-age=3600") // 缓存1小时
+        .body(Body::from(svg_data))
+        .map_err(|_| Error::InternalServerError)?;
+
+    Ok(response)
 }
 
 /// 重新生成媒体二维码
@@ -484,8 +515,8 @@ pub async fn regenerate_qrcode(
 
     format::json(serde_json::json!({
         "qrcode_path": qrcode_relative_path,
-        "qrcode_url": format!("{}/{}",
-            ctx.config.server.full_url(),
+        "qrcode_url": format!("{}{}",
+            ctx.config.server.full_url().trim_end_matches('/'),
             qrcode_relative_path
         )
     }))

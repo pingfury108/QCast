@@ -54,12 +54,13 @@ export const useUploadMedia = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (params: UploadMediaParams) => mediasService.uploadMedia(params),
-    onSuccess: (_, variables) => {
+    mutationFn: ({ params, onProgress }: { params: UploadMediaParams; onProgress?: (progress: number) => void }) =>
+      mediasService.uploadMedia(params, onProgress),
+    onSuccess: (_, { params }) => {
       queryClient.invalidateQueries({ queryKey: ['medias'] })
-      queryClient.invalidateQueries({ queryKey: ['medias', 'book', variables.book_id] })
-      if (variables.chapter_id) {
-        queryClient.invalidateQueries({ queryKey: ['medias', 'chapter', variables.chapter_id] })
+      queryClient.invalidateQueries({ queryKey: ['medias', 'book', params.book_id] })
+      if (params.chapter_id) {
+        queryClient.invalidateQueries({ queryKey: ['medias', 'chapter', params.chapter_id] })
       }
       toast.success('媒体上传成功')
     },

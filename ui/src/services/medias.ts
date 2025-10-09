@@ -12,6 +12,7 @@ export interface Media {
   access_token: string
   access_url?: string
   qr_code_path?: string
+  qr_code_url?: string
   file_version: number
   original_filename?: string
   play_count: number
@@ -78,7 +79,7 @@ export const mediasService = {
   },
 
   // 上传媒体文件
-  async uploadMedia(params: UploadMediaParams): Promise<Media> {
+  async uploadMedia(params: UploadMediaParams, onProgress?: (progress: number) => void): Promise<Media> {
     const formData = new FormData()
     formData.append('file', params.file)
     formData.append('title', params.title)
@@ -93,6 +94,12 @@ export const mediasService = {
     const response = await api.post('/media/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          onProgress(progress)
+        }
       }
     })
     return response.data

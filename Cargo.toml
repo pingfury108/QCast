@@ -50,6 +50,15 @@ image = "0.25"
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 # 字节操作
 bytes = "1.5"
+# 音频元数据处理
+symphonia = { version = "0.5", features = [
+    "mp3",
+    "aac",
+    "flac",
+    "vorbis",
+    "wav",
+    "isomp4"
+] }
 
 [[bin]]
 name = "qcast-cli"

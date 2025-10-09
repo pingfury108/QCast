@@ -54,6 +54,17 @@ impl QRCodeService {
         Ok(qrcode_path)
     }
 
+    /// 生成二维码 SVG 字符串（不保存文件）
+    pub fn generate_qrcode_svg_string(&self, data: &str) -> Result<String> {
+        // 生成二维码
+        let code = QrCode::new(data)
+            .map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
+
+        // 渲染为 SVG
+        let svg_string = code.render::<svg::Color>().build();
+        Ok(svg_string)
+    }
+
     /// 生成二维码并保存为 SVG 文件（推荐，体积更小）
     pub async fn generate_qrcode_svg(&self, data: &str, filename: &str) -> Result<PathBuf> {
         self.ensure_dir_exists().await?;
