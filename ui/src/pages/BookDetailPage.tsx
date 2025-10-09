@@ -21,6 +21,7 @@ import { api } from '../lib/api'
 import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw, Video } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
+import { MediaPlayer } from '../components/MediaPlayer'
 import { mediasService } from '../services/medias'
 import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -88,6 +89,7 @@ export default function BookDetailPage() {
   const [editMediaDialogOpen, setEditMediaDialogOpen] = useState(false)
   const [replacingMedia, setReplacingMedia] = useState<Media | null>(null)
   const [replaceMediaDialogOpen, setReplaceMediaDialogOpen] = useState(false)
+  const [playingMediaId, setPlayingMediaId] = useState<number | null>(null)
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
@@ -352,6 +354,14 @@ export default function BookDetailPage() {
     await queryClient.invalidateQueries({ queryKey: ['medias', 'book', bookId] })
   }
 
+  const handleTogglePlayer = (mediaId: number) => {
+    if (playingMediaId === mediaId) {
+      setPlayingMediaId(null)
+    } else {
+      setPlayingMediaId(mediaId)
+    }
+  }
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -555,79 +565,93 @@ export default function BookDetailPage() {
             ) : (
               <div className="grid gap-4">
                 {medias.map((media) => (
-                  <div key={media.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        {media.file_type === 'audio' ? (
-                          <Music className="w-5 h-5 text-primary" />
-                        ) : media.file_type === 'video' ? (
-                          <Video className="w-5 h-5 text-primary" />
-                        ) : (
-                          <div className="w-5 h-5 bg-muted rounded" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium">{media.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {formatDuration(media.duration)} • 播放: {media.play_count}次
-                          {media.chapter_id && getChapterDisplayName(media.chapter_id) && (
-                            <> • {getChapterDisplayName(media.chapter_id)}</>
+                  <div key={media.id} className="border rounded-lg overflow-hidden">
+                    {/* 媒体信息行 */}
+                    <div className="flex items-center justify-between p-4">
+                      <div
+                        className="flex items-center space-x-3 flex-1 cursor-pointer"
+                        onClick={() => handleTogglePlayer(media.id)}
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          {media.file_type === 'audio' ? (
+                            <Music className="w-5 h-5 text-primary" />
+                          ) : media.file_type === 'video' ? (
+                            <Video className="w-5 h-5 text-primary" />
+                          ) : (
+                            <div className="w-5 h-5 bg-muted rounded" />
                           )}
                         </div>
+                        <div>
+                          <div className="font-medium">{media.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatDuration(media.duration)} • 播放: {media.play_count}次
+                            {media.chapter_id && getChapterDisplayName(media.chapter_id) && (
+                              <> • {getChapterDisplayName(media.chapter_id)}</>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {media.is_public ? (
+                          <Eye className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 text-gray-400" />
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditMedia(media)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              编辑
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleReplaceFile(media)}>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              替换文件
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCopyLink(media)}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              复制链接
+                            </DropdownMenuItem>
+                            {media.qr_code_path && (
+                              <DropdownMenuItem onClick={() => handleViewQRCode(media)}>
+                                <QrCode className="w-4 h-4 mr-2" />
+                                查看二维码
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleToggleMediaPublish(media)}>
+                              {media.is_public ? (
+                                <>
+                                  <EyeOff className="w-4 h-4 mr-2" />
+                                  设为私密
+                                </>
+                              ) : (
+                                <>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  设为公开
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMedia(media)}>
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              删除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      {media.is_public ? (
-                        <Eye className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <EyeOff className="w-4 h-4 text-gray-400" />
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditMedia(media)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            编辑
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleReplaceFile(media)}>
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            替换文件
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleCopyLink(media)}>
-                            <Copy className="w-4 h-4 mr-2" />
-                            复制链接
-                          </DropdownMenuItem>
-                          {media.qr_code_path && (
-                            <DropdownMenuItem onClick={() => handleViewQRCode(media)}>
-                              <QrCode className="w-4 h-4 mr-2" />
-                              查看二维码
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => handleToggleMediaPublish(media)}>
-                            {media.is_public ? (
-                              <>
-                                <EyeOff className="w-4 h-4 mr-2" />
-                                设为私密
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="w-4 h-4 mr-2" />
-                                设为公开
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMedia(media)}>
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    {/* 展开的播放器 */}
+                    {playingMediaId === media.id && (
+                      <MediaPlayer
+                        media={media}
+                        onClose={() => setPlayingMediaId(null)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

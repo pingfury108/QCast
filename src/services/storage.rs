@@ -55,23 +55,30 @@ impl StorageService {
     pub fn validate_file_type(&self, filename: &str, content_type: &str) -> Result<()> {
         let allowed_types = vec![
             // 音频格式
-            "audio/mpeg", // MP3
-            "audio/mp4",  // M4A
-            "audio/wav",  // WAV
-            "audio/aac",  // AAC
-            "audio/ogg",  // OGG
-            "audio/flac", // FLAC
+            "audio/mpeg",       // MP3
+            "audio/mp4",        // M4A
+            "audio/x-m4a",      // M4A (alternative)
+            "audio/wav",        // WAV
+            "audio/x-wav",      // WAV (alternative)
+            "audio/aac",        // AAC
+            "audio/ogg",        // OGG
+            "audio/flac",       // FLAC
+            "audio/webm",       // WebM Audio
             // 视频格式
             "video/mp4",        // MP4
             "video/quicktime",  // MOV
             "video/x-msvideo",  // AVI
             "video/x-matroska", // MKV
             "video/webm",       // WebM
+            "video/mpeg",       // MPEG
+            "video/x-flv",      // FLV
+            "video/3gpp",       // 3GP
+            "video/3gpp2",      // 3G2
         ];
 
         if !allowed_types.contains(&content_type) {
             return Err(Error::Message(format!(
-                "不支持的文件类型: {}. 支持的格式: MP3, M4A, WAV, AAC, OGG, FLAC, MP4, MOV, AVI, MKV, WebM",
+                "不支持的文件类型: {}. 支持的格式: 音频(MP3, M4A, WAV, AAC, OGG, FLAC, WebM), 视频(MP4, MOV, AVI, MKV, WebM, MPEG, FLV, 3GP)",
                 content_type
             )));
         }
@@ -89,13 +96,73 @@ impl StorageService {
                     return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
                 }
             }
-            "audio/mp4" => {
+            "audio/mp4" | "audio/x-m4a" => {
                 if !["m4a", "mp4"].contains(&extension.as_str()) {
                     return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
                 }
             }
+            "audio/wav" | "audio/x-wav" => {
+                if !["wav"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "audio/aac" => {
+                if !["aac"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "audio/ogg" => {
+                if !["ogg", "oga"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "audio/flac" => {
+                if !["flac"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
             "video/mp4" => {
-                if !["mp4"].contains(&extension.as_str()) {
+                if !["mp4", "m4v"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/quicktime" => {
+                if !["mov", "qt"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/x-msvideo" => {
+                if !["avi"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/x-matroska" => {
+                if !["mkv", "mk3d", "mka", "mks"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/webm" | "audio/webm" => {
+                if !["webm"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/mpeg" => {
+                if !["mpg", "mpeg", "mpe", "m1v", "m2v"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/x-flv" => {
+                if !["flv"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/3gpp" => {
+                if !["3gp"].contains(&extension.as_str()) {
+                    return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
+                }
+            }
+            "video/3gpp2" => {
+                if !["3g2"].contains(&extension.as_str()) {
                     return Err(Error::Message("文件扩展名与MIME类型不匹配".to_string()));
                 }
             }

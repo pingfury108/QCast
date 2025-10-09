@@ -5,7 +5,7 @@ expression: child_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-09T09:36:20Z"),
+    "created_at": String("2025-10-09T17:42:37Z"),
     "description": String("Direct child description"),
     "id": Number(2),
     "level": Number(1),
@@ -14,5 +14,5 @@ Object {
     "path": String("1/2"),
     "sort_order": Number(1),
     "title": String("Direct Child Chapter"),
-    "updated_at": String("2025-10-09T09:36:20.559905Z"),
+    "updated_at": String("2025-10-09T17:42:37.341759Z"),
 }

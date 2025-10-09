@@ -15,7 +15,7 @@ use std::path::Path;
 
 #[allow(unused_imports)]
 use crate::{
-    controllers, initializers, models::_entities::users, tasks,
+    controllers, initializers, models::_entities::users, tasks, workers,
 };
 
 pub struct App;
@@ -58,6 +58,7 @@ impl Hooks for App {
             .add_route(controllers::auth::routes())
     }
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
+        // 暂无 worker
         Ok(())
     }
 

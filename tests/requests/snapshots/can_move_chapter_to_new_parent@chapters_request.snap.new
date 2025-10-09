@@ -5,7 +5,7 @@ expression: moved_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-09T09:36:35Z"),
+    "created_at": String("2025-10-09T17:42:35Z"),
     "description": Null,
     "id": Number(3),
     "level": Number(1),
@@ -14,5 +14,5 @@ Object {
     "path": String("1/3"),
     "sort_order": Number(1),
     "title": String("Independent Chapter"),
-    "updated_at": String("2025-10-09T09:36:35.583573Z"),
+    "updated_at": String("2025-10-09T17:42:35.153096Z"),
 }

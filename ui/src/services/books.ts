@@ -11,6 +11,8 @@ export interface Book {
   user_id: number
   created_at: string
   updated_at: string
+  media_count?: number
+  chapter_count?: number
 }
 
 export interface BookTree {

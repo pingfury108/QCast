@@ -86,7 +86,7 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic, onCreateS
           {/* 书籍信息 */}
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate">{book.title}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground flex items-center gap-3">
               {book.is_public ? (
                 <span className="flex items-center gap-1">
                   <Eye className="w-3 h-3 text-green-600" />
@@ -98,6 +98,14 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic, onCreateS
                   私密
                 </span>
               )}
+              <span className="flex items-center gap-1">
+                <Music className="w-3 h-3" />
+                {book.media_count || 0}
+              </span>
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-3 h-3" />
+                {book.chapter_count || 0}
+              </span>
             </div>
           </div>
 

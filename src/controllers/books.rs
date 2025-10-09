@@ -8,8 +8,10 @@ use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::models::_entities::books::{ActiveModel, Column, Entity, Model};
+use crate::models::_entities::{chapters, medias};
 use crate::models::users;
 use crate::views::books::{BookResponse, BookTreeResponse};
+use sea_orm::PaginatorTrait;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateParams {
@@ -54,7 +56,25 @@ pub async fn list(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Resp
         .all(&ctx.db)
         .await?;
 
-    let responses: Vec<BookResponse> = books.into_iter().map(BookResponse::from).collect();
+    let mut responses = Vec::new();
+    for book in books {
+        // 统计该书籍的媒体数量
+        let media_count = medias::Entity::find()
+            .filter(medias::Column::BookId.eq(book.id))
+            .count(&ctx.db)
+            .await?;
+
+        // 统计该书籍的章节数量
+        let chapter_count = chapters::Entity::find()
+            .filter(chapters::Column::BookId.eq(book.id))
+            .count(&ctx.db)
+            .await?;
+
+        let mut response = BookResponse::from(book);
+        response.media_count = Some(media_count as i64);
+        response.chapter_count = Some(chapter_count as i64);
+        responses.push(response);
+    }
 
     format::json(responses)
 }
@@ -81,7 +101,11 @@ pub async fn create(
 
     let item = item.insert(&ctx.db).await?;
 
-    format::json(BookResponse::from(item))
+    let mut response = BookResponse::from(item);
+    response.media_count = Some(0);
+    response.chapter_count = Some(0);
+
+    format::json(response)
 }
 
 /// 获取书籍详情
@@ -94,7 +118,23 @@ pub async fn show(
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     let item = load_item(&ctx, id, user.id).await?;
 
-    format::json(BookResponse::from(item))
+    // 统计该书籍的媒体数量
+    let media_count = medias::Entity::find()
+        .filter(medias::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    // 统计该书籍的章节数量
+    let chapter_count = chapters::Entity::find()
+        .filter(chapters::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    let mut response = BookResponse::from(item);
+    response.media_count = Some(media_count as i64);
+    response.chapter_count = Some(chapter_count as i64);
+
+    format::json(response)
 }
 
 /// 更新书籍
@@ -131,7 +171,23 @@ pub async fn update(
 
     let item = item.update(&ctx.db).await?;
 
-    format::json(BookResponse::from(item))
+    // 统计该书籍的媒体数量
+    let media_count = medias::Entity::find()
+        .filter(medias::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    // 统计该书籍的章节数量
+    let chapter_count = chapters::Entity::find()
+        .filter(chapters::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    let mut response = BookResponse::from(item);
+    response.media_count = Some(media_count as i64);
+    response.chapter_count = Some(chapter_count as i64);
+
+    format::json(response)
 }
 
 /// 删除书籍
@@ -164,7 +220,26 @@ pub async fn search(
     }
 
     let books = Model::search(&ctx.db, user.id, query).await?;
-    let responses: Vec<BookResponse> = books.into_iter().map(BookResponse::from).collect();
+
+    let mut responses = Vec::new();
+    for book in books {
+        // 统计该书籍的媒体数量
+        let media_count = medias::Entity::find()
+            .filter(medias::Column::BookId.eq(book.id))
+            .count(&ctx.db)
+            .await?;
+
+        // 统计该书籍的章节数量
+        let chapter_count = chapters::Entity::find()
+            .filter(chapters::Column::BookId.eq(book.id))
+            .count(&ctx.db)
+            .await?;
+
+        let mut response = BookResponse::from(book);
+        response.media_count = Some(media_count as i64);
+        response.chapter_count = Some(chapter_count as i64);
+        responses.push(response);
+    }
 
     format::json(responses)
 }
@@ -201,7 +276,23 @@ pub async fn reorder(
     item.sort_order = Set(Some(params.sort_order));
     let item = item.update(&ctx.db).await?;
 
-    format::json(BookResponse::from(item))
+    // 统计该书籍的媒体数量
+    let media_count = medias::Entity::find()
+        .filter(medias::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    // 统计该书籍的章节数量
+    let chapter_count = chapters::Entity::find()
+        .filter(chapters::Column::BookId.eq(item.id))
+        .count(&ctx.db)
+        .await?;
+
+    let mut response = BookResponse::from(item);
+    response.media_count = Some(media_count as i64);
+    response.chapter_count = Some(chapter_count as i64);
+
+    format::json(response)
 }
 
 pub fn routes() -> Routes {

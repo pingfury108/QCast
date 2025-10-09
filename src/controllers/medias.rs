@@ -17,6 +17,7 @@ use crate::services::video_metadata::VIDEO_METADATA_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
 
 
+
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     let item = Entity::find_by_id(id)
         .filter(Column::UserId.eq(user_id))
@@ -112,6 +113,29 @@ pub async fn delete(
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     let item = load_item(&ctx, id, user.id).await?;
 
+    // 删除物理文件
+    let file_path = std::path::Path::new(&item.file_path);
+    if tokio::fs::metadata(file_path).await.is_ok() {
+        if let Err(e) = tokio::fs::remove_file(file_path).await {
+            tracing::warn!("删除媒体文件失败: {:?}, 错误: {}", file_path, e);
+        } else {
+            tracing::info!("已删除媒体文件: {:?}", file_path);
+        }
+    }
+
+    // 删除二维码文件
+    if let Some(ref qr_path) = item.qr_code_path {
+        let qr_full_path = std::path::Path::new("assets/static").join(qr_path.trim_start_matches('/'));
+        if tokio::fs::metadata(&qr_full_path).await.is_ok() {
+            if let Err(e) = tokio::fs::remove_file(&qr_full_path).await {
+                tracing::warn!("删除二维码文件失败: {:?}, 错误: {}", qr_full_path, e);
+            } else {
+                tracing::info!("已删除二维码文件: {:?}", qr_full_path);
+            }
+        }
+    }
+
+    // 删除数据库记录
     item.delete(&ctx.db).await?;
     format::empty()
 }
@@ -306,7 +330,7 @@ pub async fn upload(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
-    // 提取元数据（包含时长）
+    // 提取元数据（包含时长）- 使用原始文件
     let duration = if content_type.starts_with("video/") {
         // 视频文件使用 FFmpeg 提取
         let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
@@ -333,7 +357,7 @@ pub async fn upload(
     // 生成访问令牌
     let access_token = Uuid::new_v4().to_string();
 
-    // 创建媒体记录
+    // 创建媒体记录（使用原始文件信息）
     let media = ActiveModel {
         user_id: Set(user.id),
         book_id: Set(book_id),
@@ -343,17 +367,17 @@ pub async fn upload(
         file_type: Set(file_type),
         file_path: Set(uploaded_file.path.to_string_lossy().to_string()),
         file_size: Set(Some(uploaded_file.size as i64)),
-        duration: Set(duration), // 使用提取的音频时长
-        mime_type: Set(Some(content_type)),
+        duration: Set(duration),
+        mime_type: Set(Some(content_type.clone())),
         access_token: Set(access_token.clone()),
         access_url: Set(Some(format!(
             "{}/public/media/{}",
             ctx.config.server.full_url(),
             access_token
         ))),
-        qr_code_path: Set(None), // 暂时为空，后续可以生成二维码
+        qr_code_path: Set(None),
         file_version: Set(1),
-        original_filename: Set(Some(filename)),
+        original_filename: Set(Some(filename.clone())),
         play_count: Set(0),
         is_public: Set(false),
         ..Default::default()
@@ -367,7 +391,6 @@ pub async fn upload(
         let access_url_clone = access_url.clone();
         let ctx_clone = ctx.clone();
 
-        // 使用 tokio spawn 异步生成二维码
         tokio::spawn(async move {
             if let Err(e) = generate_qrcode_for_media(&ctx_clone, media_id, &access_url_clone).await {
                 tracing::error!("异步生成二维码失败: {}", e);
@@ -491,16 +514,14 @@ pub async fn replace_file(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
-    // 提取元数据（包含时长）
+    // 提取元数据（包含时长）- 使用原始文件
     let duration = if content_type.starts_with("video/") {
-        // 视频文件使用 FFmpeg 提取
         let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
             &uploaded_file.path.to_string_lossy(),
             &content_type
         );
         metadata.duration
     } else {
-        // 音频文件使用 Symphonia 提取
         let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
             &uploaded_file.path.to_string_lossy(),
             &content_type
@@ -520,12 +541,11 @@ pub async fn replace_file(
     active_model.file_type = Set(file_type);
     active_model.file_path = Set(uploaded_file.path.to_string_lossy().to_string());
     active_model.file_size = Set(Some(uploaded_file.size as i64));
-    active_model.duration = Set(duration); // 使用提取的时长
-    active_model.mime_type = Set(Some(content_type));
+    active_model.duration = Set(duration);
+    active_model.mime_type = Set(Some(content_type.clone()));
     active_model.file_version = Set(old_file_version + 1);
     active_model.original_filename = Set(Some(filename));
     active_model.updated_at = Set(chrono::Utc::now().into());
-    // access_token 保持不变
 
     let updated_media = active_model.update(&ctx.db).await?;
 
@@ -660,6 +680,114 @@ pub async fn regenerate_qrcode(
     }))
 }
 
+/// 流式访问媒体文件（带认证）
+#[debug_handler]
+pub async fn stream_media(
+    auth: auth::JWT,
+    AxumPath(id): AxumPath<i32>,
+    State(ctx): State<AppContext>,
+    headers: axum::http::HeaderMap,
+) -> Result<Response> {
+    use axum::http::{header, StatusCode};
+    use axum::body::Body;
+    use tokio::fs::File;
+    use tokio::io::{AsyncSeekExt, SeekFrom, AsyncReadExt};
+
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+    let media = load_item(&ctx, id, user.id).await?;
+
+    // 检查文件是否存在
+    let file_path = &media.file_path;
+    if !tokio::fs::metadata(file_path).await.is_ok() {
+        return Err(Error::NotFound);
+    }
+
+    // 获取文件大小
+    let file_size = tokio::fs::metadata(file_path).await?.len();
+    let content_type = media.mime_type.as_deref().unwrap_or("application/octet-stream");
+
+    // 处理 Range 请求（支持断点续传和视频拖动）
+    if let Some(range_value) = headers.get(header::RANGE) {
+        let range_str = range_value.to_str().map_err(|_| {
+            Error::BadRequest("无效的 Range 头".to_string())
+        })?;
+
+        // 解析 Range 头
+        if let Some((start, end)) = parse_stream_range(range_str, file_size) {
+            // 打开文件
+            let mut file = File::open(file_path).await
+                .map_err(|_| Error::InternalServerError)?;
+
+            // 跳转到开始位置
+            file.seek(SeekFrom::Start(start)).await
+                .map_err(|_| Error::InternalServerError)?;
+
+            // 读取指定范围的数据
+            let mut buffer = Vec::new();
+            let remaining = end - start + 1;
+            file.take(remaining).read_to_end(&mut buffer).await
+                .map_err(|_| Error::InternalServerError)?;
+
+            // 构建 206 Partial Content 响应
+            let content_range = format!("bytes {}-{}/{}", start, end, file_size);
+
+            let response = Response::builder()
+                .status(StatusCode::PARTIAL_CONTENT)
+                .header(header::CONTENT_TYPE, content_type)
+                .header(header::CONTENT_RANGE, content_range)
+                .header(header::ACCEPT_RANGES, "bytes")
+                .header(header::CONTENT_LENGTH, buffer.len())
+                .body(Body::from(buffer))
+                .map_err(|_| Error::InternalServerError)?;
+
+            return Ok(response);
+        }
+    }
+
+    // 完整文件服务
+    let file_contents = tokio::fs::read(file_path).await
+        .map_err(|_| Error::InternalServerError)?;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_LENGTH, file_contents.len())
+        .body(Body::from(file_contents))
+        .map_err(|_| Error::InternalServerError)?;
+
+    Ok(response)
+}
+
+/// 解析流式访问的 Range 头
+fn parse_stream_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
+    if !range_str.starts_with("bytes=") {
+        return None;
+    }
+
+    let range_part = &range_str[6..];
+
+    if let Some((start_str, end_str)) = range_part.split_once('-') {
+        let start = if start_str.is_empty() {
+            0
+        } else {
+            start_str.parse::<u64>().ok()?
+        };
+
+        let end = if end_str.is_empty() {
+            file_size - 1
+        } else {
+            end_str.parse::<u64>().ok()?
+        };
+
+        if start <= end && end < file_size {
+            return Some((start, end));
+        }
+    }
+
+    None
+}
+
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("/api/media")
@@ -682,4 +810,5 @@ pub fn routes() -> Routes {
         .add("/{id}/publish", post(publish))
         .add("/{id}/qrcode", get(get_qrcode))
         .add("/{id}/regenerate-qr", post(regenerate_qrcode))
+        .add("/{id}/stream", get(stream_media))
 }

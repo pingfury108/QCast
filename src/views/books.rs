@@ -14,6 +14,8 @@ pub struct BookResponse {
     pub user_id: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub media_count: Option<i64>,
+    pub chapter_count: Option<i64>,
 }
 
 impl From<Model> for BookResponse {
@@ -29,6 +31,8 @@ impl From<Model> for BookResponse {
             user_id: book.user_id,
             created_at: book.created_at.into(),
             updated_at: book.updated_at.into(),
+            media_count: None,
+            chapter_count: None,
         }
     }
 }
