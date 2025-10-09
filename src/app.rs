@@ -56,6 +56,7 @@ impl Hooks for App {
             .add_route(controllers::medias::routes())
             .add_route(controllers::public::routes())
             .add_route(controllers::auth::routes())
+            .add_route(controllers::dashboard::routes())
     }
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
         // 暂无 worker

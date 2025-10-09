@@ -1,15 +1,6 @@
 import { Link } from 'react-router-dom';
-import { isAuthenticated } from '../lib/auth';
 
 export default function HomePage() {
-  const authenticated = isAuthenticated();
-
-  // 如果已登录，自动跳转到 dashboard
-  if (authenticated) {
-    window.location.href = '/dashboard';
-    return null;
-  }
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}

@@ -10,7 +10,6 @@ import ResetPasswordPage from '../pages/ResetPasswordPage';
 import DashboardPage from '../pages/DashboardPage';
 import DashboardBooks from '../pages/DashboardBooks';
 import BookDetailPage from '../pages/BookDetailPage';
-import UploadPage from '../pages/UploadPage';
 import PublicMediaPage from '../pages/PublicMediaPage';
 
 // 创建路由配置
@@ -64,14 +63,6 @@ export const router = createBrowserRouter([
             <DashboardLayout>
               <BookDetailPage />
             </DashboardLayout>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'dashboard/upload',
-        element: (
-          <ProtectedRoute>
-            <UploadPage />
           </ProtectedRoute>
         ),
       },

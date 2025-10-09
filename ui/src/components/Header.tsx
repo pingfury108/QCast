@@ -4,7 +4,7 @@ import { isAuthenticated, clearAuthState } from '../lib/auth';
 import { useAuthState } from '../hooks/useAuthState';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, LayoutDashboard } from 'lucide-react';
 
 interface HeaderProps {
   variant?: 'public' | 'auth' | 'dashboard';
@@ -62,21 +62,25 @@ export default function Header({ variant = 'public' }: HeaderProps) {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-8">
-            <Link to="/dashboard" className="flex items-center space-x-2">
+            <Link to="/" className="flex items-center space-x-2">
               <span className="text-2xl font-bold"> QCast</span>
             </Link>
             <nav className="hidden md:flex items-center space-x-6">
               <Link
-                to="/dashboard/books"
-                className="text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60"
+                to="/dashboard"
+                className={`text-sm font-medium transition-colors hover:text-foreground/80 ${
+                  location.pathname === '/dashboard' ? 'text-foreground' : 'text-foreground/60'
+                }`}
               >
-                我的书籍
+                仪表盘
               </Link>
               <Link
-                to="/dashboard/upload"
-                className="text-sm font-medium transition-colors hover:text-foreground/80 text-foreground/60"
+                to="/dashboard/books"
+                className={`text-sm font-medium transition-colors hover:text-foreground/80 ${
+                  location.pathname.startsWith('/dashboard/books') ? 'text-foreground' : 'text-foreground/60'
+                }`}
               >
-                上传
+                我的书籍
               </Link>
             </nav>
           </div>
@@ -90,7 +94,6 @@ export default function Header({ variant = 'public' }: HeaderProps) {
                         {user.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium hidden md:block">{user.name}</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
