@@ -13,6 +13,7 @@ use crate::models::users;
 use crate::services::storage::StorageService;
 use crate::services::qrcode::QRCODE_SERVICE;
 use crate::services::audio_metadata::AUDIO_METADATA_SERVICE;
+use crate::services::video_metadata::VIDEO_METADATA_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
 
 
@@ -305,18 +306,28 @@ pub async fn upload(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
-    // 提取音频元数据（包含时长）
-    let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
-        &uploaded_file.path.to_string_lossy(),
-        &content_type
-    );
-    let duration = metadata.duration;
+    // 提取元数据（包含时长）
+    let duration = if content_type.starts_with("video/") {
+        // 视频文件使用 FFmpeg 提取
+        let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
+            &uploaded_file.path.to_string_lossy(),
+            &content_type
+        );
+        metadata.duration
+    } else {
+        // 音频文件使用 Symphonia 提取
+        let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
+            &uploaded_file.path.to_string_lossy(),
+            &content_type
+        );
+        metadata.duration
+    };
 
-    // 记录音频时长提取结果
+    // 记录时长提取结果
     if duration.is_some() {
-        tracing::info!("音频文件时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
-    } else if content_type.starts_with("audio/") {
-        tracing::warn!("音频文件时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+        tracing::info!("媒体文件时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
+    } else if content_type.starts_with("audio/") || content_type.starts_with("video/") {
+        tracing::warn!("媒体文件时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
     }
 
     // 生成访问令牌
@@ -480,17 +491,28 @@ pub async fn replace_file(
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
-    // 提取音频元数据（包含时长）
-    let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
-        &uploaded_file.path.to_string_lossy(),
-        &content_type
-    );
+    // 提取元数据（包含时长）
+    let duration = if content_type.starts_with("video/") {
+        // 视频文件使用 FFmpeg 提取
+        let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
+            &uploaded_file.path.to_string_lossy(),
+            &content_type
+        );
+        metadata.duration
+    } else {
+        // 音频文件使用 Symphonia 提取
+        let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
+            &uploaded_file.path.to_string_lossy(),
+            &content_type
+        );
+        metadata.duration
+    };
 
-    // 记录音频时长提取结果
-    if metadata.duration.is_some() {
-        tracing::info!("音频文件替换后时长提取成功: {}秒 - 文件: {:?}", metadata.duration.unwrap(), filename);
-    } else if content_type.starts_with("audio/") {
-        tracing::warn!("音频文件替换后时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+    // 记录时长提取结果
+    if duration.is_some() {
+        tracing::info!("媒体文件替换后时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
+    } else if content_type.starts_with("audio/") || content_type.starts_with("video/") {
+        tracing::warn!("媒体文件替换后时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
     }
 
     // 更新媒体记录（保持 access_token 不变）
@@ -498,7 +520,7 @@ pub async fn replace_file(
     active_model.file_type = Set(file_type);
     active_model.file_path = Set(uploaded_file.path.to_string_lossy().to_string());
     active_model.file_size = Set(Some(uploaded_file.size as i64));
-    active_model.duration = Set(metadata.duration); // 使用提取的时长
+    active_model.duration = Set(duration); // 使用提取的时长
     active_model.mime_type = Set(Some(content_type));
     active_model.file_version = Set(old_file_version + 1);
     active_model.original_filename = Set(Some(filename));

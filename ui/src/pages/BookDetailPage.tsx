@@ -18,7 +18,7 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw, Video } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { mediasService } from '../services/medias'
@@ -120,14 +120,32 @@ export default function BookDetailPage() {
     resolver: zodResolver(uploadMediaSchema)
   })
 
-  // 构建章节 ID 到章节路径的映射
-  const chapterPathMap = useMemo(() => {
-    const map = new Map<number, string>()
+  // 构建章节 ID 到章节对象的映射
+  const chapterMap = useMemo(() => {
+    const map = new Map<number, Chapter>()
     chapters.forEach(chapter => {
-      map.set(chapter.id, chapter.path || chapter.title)
+      map.set(chapter.id, chapter)
     })
     return map
   }, [chapters])
+
+  // 将 ID 路径转换为名称路径
+  const getChapterDisplayName = (chapterId: number) => {
+    const chapter = chapterMap.get(chapterId)
+    if (!chapter) return ''
+
+    // 如果有 path，将 ID 路径转换为名称路径
+    if (chapter.path) {
+      const pathIds = chapter.path.split('/').map(id => parseInt(id))
+      const pathNames = pathIds
+        .map(id => chapterMap.get(id)?.title)
+        .filter(Boolean)
+        .join(' > ')
+      return pathNames || chapter.title
+    }
+
+    return chapter.title
+  }
 
   const handleEditBook = () => {
     if (!book) return
@@ -322,7 +340,7 @@ export default function BookDetailPage() {
 
   const handleSaveEditMedia = async (mediaId: number, data: any) => {
     await mediasService.updateMedia(mediaId, data)
-    await queryClient.invalidateQueries({ queryKey: ['book-medias', bookId] })
+    await queryClient.invalidateQueries({ queryKey: ['medias', 'book', bookId] })
   }
 
   const handleReplaceFile = (media: Media) => {
@@ -331,7 +349,7 @@ export default function BookDetailPage() {
   }
 
   const handleReplaceSuccess = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['book-medias', bookId] })
+    await queryClient.invalidateQueries({ queryKey: ['medias', 'book', bookId] })
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,7 +427,7 @@ export default function BookDetailPage() {
   }
 
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return '--:--'
+    if (seconds === null || seconds === undefined) return '--:--'
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
@@ -543,9 +561,7 @@ export default function BookDetailPage() {
                         {media.file_type === 'audio' ? (
                           <Music className="w-5 h-5 text-primary" />
                         ) : media.file_type === 'video' ? (
-                          <div className="w-5 h-5 bg-muted rounded flex items-center justify-center">
-                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                          </div>
+                          <Video className="w-5 h-5 text-primary" />
                         ) : (
                           <div className="w-5 h-5 bg-muted rounded" />
                         )}
@@ -554,8 +570,8 @@ export default function BookDetailPage() {
                         <div className="font-medium">{media.title}</div>
                         <div className="text-sm text-muted-foreground">
                           {formatDuration(media.duration)} • 播放: {media.play_count}次
-                          {media.chapter_id && chapterPathMap.has(media.chapter_id) && (
-                            <> • {chapterPathMap.get(media.chapter_id)}</>
+                          {media.chapter_id && getChapterDisplayName(media.chapter_id) && (
+                            <> • {getChapterDisplayName(media.chapter_id)}</>
                           )}
                         </div>
                       </div>

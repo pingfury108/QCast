@@ -61,6 +61,8 @@ symphonia = { version = "0.5", features = [
     "wav",
     "isomp4"
 ] }
+# FFmpeg 用于视频元数据提取
+ffmpeg-next = "7.1"
 
 [[bin]]
 name = "qcast-cli"
