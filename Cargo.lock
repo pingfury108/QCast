@@ -3336,6 +3336,7 @@ dependencies = [
  "bytes",
  "chrono",
  "fluent-templates",
+ "futures-util",
  "image",
  "include_dir",
  "insta",

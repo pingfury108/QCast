@@ -50,6 +50,8 @@ image = "0.25"
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 # 字节操作
 bytes = "1.5"
+# futures utilities (需要用于流式处理)
+futures-util = "0.3"
 # 音频元数据处理
 symphonia = { version = "0.5", features = [
     "mp3",

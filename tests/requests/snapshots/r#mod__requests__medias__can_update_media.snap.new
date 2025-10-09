@@ -4,11 +4,11 @@ assertion_line: 242
 expression: updated_media
 ---
 Object {
-    "access_token": String("a0bc9226-eecf-4288-a7a9-ef6520ee7c77"),
-    "access_url": String("http://localhost:5150/public/media/a0bc9226-eecf-4288-a7a9-ef6520ee7c77"),
+    "access_token": String("18b08bb2-e838-4d34-9b3a-cf8f4e19d625"),
+    "access_url": String("http://localhost:5150/public/media/18b08bb2-e838-4d34-9b3a-cf8f4e19d625"),
     "book_id": Number(1),
     "chapter_id": Null,
-    "created_at": String("2025-10-08T08:52:10Z"),
+    "created_at": String("2025-10-09T09:36:50Z"),
     "description": String("Updated Description"),
     "duration": Number(120),
     "file_path": String("/test/path.mp3"),
@@ -22,6 +22,6 @@ Object {
     "play_count": Number(0),
     "qr_code_path": Null,
     "title": String("Updated Title"),
-    "updated_at": String("2025-10-08T08:52:10.973931Z"),
+    "updated_at": String("2025-10-09T09:36:50.362783Z"),
     "user_id": Number(1),
 }

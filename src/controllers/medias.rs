@@ -2,7 +2,7 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
-use axum::extract::{Path as AxumPath, Query};
+use axum::extract::{Path as AxumPath, Query, DefaultBodyLimit};
 use axum::routing::method_routing::delete as axum_delete;
 use axum_extra::extract::Multipart;
 use loco_rs::prelude::*;
@@ -14,6 +14,7 @@ use crate::services::storage::StorageService;
 use crate::services::qrcode::QRCODE_SERVICE;
 use crate::services::audio_metadata::AUDIO_METADATA_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
+
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     let item = Entity::find_by_id(id)
@@ -123,7 +124,8 @@ pub async fn upload(
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
-    let mut file_data: Option<Vec<u8>> = None;
+    let mut temp_file_path: Option<std::path::PathBuf> = None;
+    let mut file_size: Option<u64> = None;
     let mut filename: Option<String> = None;
     let mut content_type: Option<String> = None;
     let mut title: Option<String> = None;
@@ -131,8 +133,11 @@ pub async fn upload(
     let mut book_id: Option<i32> = None;
     let mut chapter_id: Option<i32> = None;
 
+    // 设置最大文件大小为 2GB
+    const MAX_FILE_SIZE: u64 = 2_147_483_648;
+
     // 解析 multipart 数据
-    while let Some(field) = multipart
+    while let Some(mut field) = multipart
         .next_field()
         .await
         .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
@@ -141,20 +146,62 @@ pub async fn upload(
 
         match name.as_str() {
             "file" => {
-                filename = field.file_name().map(|s| s.to_string());
-                content_type = field.content_type().map(|s| s.to_string());
+                let field_filename = field.file_name().map(|s| s.to_string());
+                let field_content_type = field.content_type().map(|s| s.to_string());
 
-                let data = field
-                    .bytes()
+                // 验证必需信息
+                let fname = field_filename.clone()
+                    .ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
+                let ctype = field_content_type.clone()
+                    .ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
+
+                // 先验证文件类型
+                let storage = StorageService::new("uploads");
+                storage.validate_file_type(&fname, &ctype)?;
+
+                // 创建临时文件并流式写入
+                use tokio::io::AsyncWriteExt;
+                let temp_dir = std::env::temp_dir();
+                let temp_filename = format!("upload_{}.tmp", uuid::Uuid::new_v4());
+                let temp_path = temp_dir.join(&temp_filename);
+
+                let mut file = tokio::fs::File::create(&temp_path)
                     .await
-                    .map_err(|e| Error::Message(format!("读取文件数据失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("创建临时文件失败: {}", e)))?;
 
-                // 限制文件大小 (500MB)
-                if data.len() > 524_288_000 {
-                    return Err(Error::Message("文件大小超过限制 (500MB)".to_string()));
+                let mut total_size: u64 = 0;
+
+                // 逐块读取并写入
+                while let Some(chunk) = field.chunk().await
+                    .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
+                {
+                    total_size += chunk.len() as u64;
+
+                    // 检查大小限制
+                    if total_size > MAX_FILE_SIZE {
+                        // 清理临时文件
+                        let _ = tokio::fs::remove_file(&temp_path).await;
+                        return Err(Error::Message(format!(
+                            "文件大小超过限制 ({}GB)",
+                            MAX_FILE_SIZE / 1_073_741_824
+                        )));
+                    }
+
+                    // 写入块
+                    file.write_all(&chunk)
+                        .await
+                        .map_err(|e| Error::Message(format!("写入数据失败: {}", e)))?;
                 }
 
-                file_data = Some(data.to_vec());
+                // 确保所有数据都写入磁盘
+                file.flush()
+                    .await
+                    .map_err(|e| Error::Message(format!("刷新缓冲区失败: {}", e)))?;
+
+                temp_file_path = Some(temp_path);
+                file_size = Some(total_size);
+                filename = Some(fname);
+                content_type = Some(ctype);
             }
             "title" => {
                 title = Some(
@@ -201,7 +248,10 @@ pub async fn upload(
     }
 
     // 验证必需字段
-    let file_data = file_data.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let temp_path = temp_file_path
+        .ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let file_size = file_size
+        .ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
     let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
     let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
     let title = title.ok_or_else(|| Error::Message("缺少标题".to_string()))?;
@@ -225,10 +275,10 @@ pub async fn upload(
             .ok_or_else(|| Error::Message("章节不存在或不属于指定书籍".to_string()))?;
     }
 
-    // 使用存储服务保存文件
+    // 使用存储服务移动临时文件到永久位置
     let storage = StorageService::new("uploads");
     let uploaded_file = storage
-        .save_file(user.id, book_id, &filename, &content_type, &file_data)
+        .move_temp_file(user.id, book_id, &temp_path, &filename, &content_type, file_size)
         .await?;
 
     // 确定文件类型
@@ -525,14 +575,22 @@ pub async fn regenerate_qrcode(
 pub fn routes() -> Routes {
     Routes::new()
         .prefix("/api/media")
-        .add("/upload", post(upload))
+        // 上传路由需要更大的 body limit (2.5GB)
+        .add(
+            "/upload",
+            post(upload).layer(DefaultBodyLimit::max(2_500_000_000))
+        )
+        // 替换文件路由也需要更大的 body limit
+        .add(
+            "/{id}/replace-file",
+            put(replace_file).layer(DefaultBodyLimit::max(2_500_000_000))
+        )
         .add("/", get(list))
         .add("/search", get(search))
         .add("/{id}", get(show))
         .add("/{id}", put(update))
         .add("/{id}", patch(update))
         .add("/{id}", axum_delete(delete))
-        .add("/{id}/replace-file", put(replace_file))
         .add("/{id}/publish", post(publish))
         .add("/{id}/qrcode", get(get_qrcode))
         .add("/{id}/regenerate-qr", post(regenerate_qrcode))

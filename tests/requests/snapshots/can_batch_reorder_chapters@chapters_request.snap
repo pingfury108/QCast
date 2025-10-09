@@ -5,7 +5,7 @@ expression: chapters
 [
     Object {
         "book_id": Number(1),
-        "created_at": String("2025-10-09T07:42:19Z"),
+        "created_at": String("2025-10-09T09:56:09Z"),
         "description": Null,
         "id": Number(3),
         "level": Number(0),
@@ -14,11 +14,11 @@ expression: chapters
         "path": String("3"),
         "sort_order": Number(1),
         "title": String("Chapter 3"),
-        "updated_at": String("2025-10-09T07:42:19.636509Z"),
+        "updated_at": String("2025-10-09T09:56:09.810248Z"),
     },
     Object {
         "book_id": Number(1),
-        "created_at": String("2025-10-09T07:42:19Z"),
+        "created_at": String("2025-10-09T09:56:09Z"),
         "description": Null,
         "id": Number(1),
         "level": Number(0),
@@ -27,11 +27,11 @@ expression: chapters
         "path": String("1"),
         "sort_order": Number(2),
         "title": String("Chapter 1"),
-        "updated_at": String("2025-10-09T07:42:19.636915Z"),
+        "updated_at": String("2025-10-09T09:56:09.811694Z"),
     },
     Object {
         "book_id": Number(1),
-        "created_at": String("2025-10-09T07:42:19Z"),
+        "created_at": String("2025-10-09T09:56:09Z"),
         "description": Null,
         "id": Number(2),
         "level": Number(0),
@@ -40,6 +40,6 @@ expression: chapters
         "path": String("2"),
         "sort_order": Number(3),
         "title": String("Chapter 2"),
-        "updated_at": String("2025-10-09T07:42:19.637293Z"),
+        "updated_at": String("2025-10-09T09:56:09.812796Z"),
     },
 ]

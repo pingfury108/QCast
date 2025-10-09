@@ -91,10 +91,8 @@ export const mediasService = {
       formData.append('chapter_id', params.chapter_id.toString())
     }
 
+    // 注意：不要手动设置 Content-Type，让浏览器自动设置（包含 boundary）
     const response = await api.post('/media/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -139,11 +137,8 @@ export const mediasService = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await api.put(`/media/${id}/replace-file`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    // 注意：不要手动设置 Content-Type，让浏览器自动设置（包含 boundary）
+    const response = await api.put(`/media/${id}/replace-file`, formData)
     return response.data
   }
 }

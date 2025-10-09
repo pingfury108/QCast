@@ -5,7 +5,7 @@ expression: updated_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-08T15:51:12Z"),
+    "created_at": String("2025-10-09T09:36:29Z"),
     "description": String("Updated Description"),
     "id": Number(1),
     "level": Number(0),
@@ -14,5 +14,5 @@ Object {
     "path": String("1"),
     "sort_order": Number(10),
     "title": String("Updated Title"),
-    "updated_at": String("2025-10-08T15:51:12.922530Z"),
+    "updated_at": String("2025-10-09T09:36:29.752386Z"),
 }
