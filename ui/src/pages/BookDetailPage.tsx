@@ -19,7 +19,7 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download, PlayCircle, Search } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download, PlayCircle, Search } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { MediaPlayer } from '../components/MediaPlayer'
@@ -101,11 +101,12 @@ export default function BookDetailPage() {
   const [playingMediaId, setPlayingMediaId] = useState<number | null>(null)
   const [mediaSearchQuery, setMediaSearchQuery] = useState('')
   const [chapterSearchQuery, setChapterSearchQuery] = useState('')
+  const [actualChapterSearchQuery, setActualChapterSearchQuery] = useState('')
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [] } = useChapters(bookId)
   const { data: chapterTree = [], isLoading: chapterTreeLoading } = useChapterTree(bookId)
-  const { data: chapterSearchResults, isLoading: chapterSearchLoading } = useSearchChapters(bookId, chapterSearchQuery)
+  const { data: chapterSearchResults, isLoading: chapterSearchLoading } = useSearchChapters(bookId, actualChapterSearchQuery)
   const { data: medias = [], isLoading: mediasLoading } = useBookMedias(bookId)
   const updateBookMutation = useUpdateBook()
   const createChapterMutation = useCreateChapter()
@@ -631,7 +632,7 @@ export default function BookDetailPage() {
 
   // 处理章节显示数据
   const displayChapterTree = useMemo(() => {
-    if (chapterSearchQuery.length > 0 && chapterSearchResults) {
+    if (actualChapterSearchQuery.length > 0 && chapterSearchResults) {
       // 搜索模式：将扁平的 Chapter[] 转换为树形结构
       const buildChapterTree = (chapters: Chapter[]): ChapterTree[] => {
         if (!chapters) return []
@@ -661,9 +662,9 @@ export default function BookDetailPage() {
       return buildChapterTree(chapterSearchResults)
     }
     return chapterTree
-  }, [chapterSearchQuery, chapterSearchResults, chapterTree])
+  }, [actualChapterSearchQuery, chapterSearchResults, chapterTree])
 
-  const isChapterLoading = chapterSearchQuery.length > 0 ? chapterSearchLoading : chapterTreeLoading
+  const isChapterLoading = actualChapterSearchQuery.length > 0 ? chapterSearchLoading : chapterTreeLoading
 
   if (isLoading) {
     return (
@@ -751,7 +752,7 @@ export default function BookDetailPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="media" className="flex items-center gap-2">
               <Music className="w-4 h-4" />
               媒体
@@ -763,10 +764,6 @@ export default function BookDetailPage() {
             <TabsTrigger value="preview" className="flex items-center gap-2">
               <PlayCircle className="w-4 h-4" />
               预览
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              设置
             </TabsTrigger>
           </TabsList>
 
@@ -794,9 +791,14 @@ export default function BookDetailPage() {
             <div className="relative max-w-sm">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="搜索媒体..."
+                placeholder="搜索媒体... (按回车搜索)"
                 value={mediaSearchQuery}
                 onChange={(e) => setMediaSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                  }
+                }}
                 className="pl-8"
               />
             </div>
@@ -924,14 +926,39 @@ export default function BookDetailPage() {
             </div>
 
             {/* 搜索框 */}
-            <div className="relative max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索章节..."
-                value={chapterSearchQuery}
-                onChange={(e) => setChapterSearchQuery(e.target.value)}
-                className="pl-8"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索章节... (按回车搜索)"
+                  value={chapterSearchQuery}
+                  onChange={(e) => setChapterSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      setActualChapterSearchQuery(chapterSearchQuery)
+                    }
+                  }}
+                  className="pl-8"
+                />
+                {chapterSearchLoading && actualChapterSearchQuery.length > 0 && (
+                  <div className="absolute right-2 top-2.5 text-xs text-muted-foreground">
+                    搜索中...
+                  </div>
+                )}
+              </div>
+              {actualChapterSearchQuery.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setChapterSearchQuery('')
+                    setActualChapterSearchQuery('')
+                  }}
+                >
+                  清除搜索
+                </Button>
+              )}
             </div>
 
             {isChapterLoading ? (
@@ -977,28 +1004,6 @@ export default function BookDetailPage() {
                 onReorder={handleReorderChapter}
               />
             )}
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <div className="max-w-2xl">
-              <h2 className="text-lg font-semibold mb-4">书籍设置</h2>
-
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <div className="font-medium">公开状态</div>
-                    <div className="text-sm text-muted-foreground">
-                      {book.is_public ? '此书籍对所有人可见' : '仅自己可见'}
-                    </div>
-                  </div>
-                  <Switch
-                    checked={book.is_public}
-                    onCheckedChange={handleTogglePublic}
-                  />
-                </div>
-              </div>
-            </div>
           </TabsContent>
 
           {/* Preview Tab */}

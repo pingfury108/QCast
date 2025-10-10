@@ -183,6 +183,7 @@ const TreeNode = ({ node, level = 0, onEdit, onDelete, onTogglePublic, onCreateS
 
 export default function DashboardBooks() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [actualSearchQuery, setActualSearchQuery] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editingBook, setEditingBook] = useState<Book | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -190,14 +191,14 @@ export default function DashboardBooks() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { data: books, isLoading, error } = useBooks()
-  const { data: searchResults, isLoading: isSearching } = useSearchBooks(searchQuery)
+  const { data: searchResults, isLoading: isSearching } = useSearchBooks(actualSearchQuery)
   const createBookMutation = useCreateBook()
   const updateBookMutation = useUpdateBook()
   const deleteBookMutation = useDeleteBook()
 
   // 根据搜索状态决定使用哪个数据源
-  const displayBooks = searchQuery.length > 0 ? searchResults : books
-  const isLoadingData = searchQuery.length > 0 ? isSearching : isLoading
+  const displayBooks = actualSearchQuery.length > 0 ? searchResults : books
+  const isLoadingData = actualSearchQuery.length > 0 ? isSearching : isLoading
 
   const createForm = useForm<CreateBookForm>({
     resolver: zodResolver(createBookSchema),
@@ -440,12 +441,35 @@ export default function DashboardBooks() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="搜索书籍..."
+            placeholder="搜索书籍... (按回车搜索)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                setActualSearchQuery(searchQuery)
+              }
+            }}
             className="pl-8"
           />
+          {isSearching && actualSearchQuery.length > 0 && (
+            <div className="absolute right-2 top-2.5 text-xs text-muted-foreground">
+              搜索中...
+            </div>
+          )}
         </div>
+        {actualSearchQuery.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearchQuery('')
+              setActualSearchQuery('')
+            }}
+          >
+            清除搜索
+          </Button>
+        )}
       </div>
 
         {/* Tree Structure */}
