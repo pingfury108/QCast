@@ -3,8 +3,8 @@
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
 use loco_rs::prelude::*;
-use serde::{Deserialize, Serialize};
 use sea_orm::{PaginatorTrait, QueryOrder, QuerySelect};
+use serde::{Deserialize, Serialize};
 
 use crate::models::_entities::{books, chapters, medias};
 use crate::models::users;

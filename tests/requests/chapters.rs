@@ -705,7 +705,10 @@ async fn can_create_child_chapter_directly() {
         });
 
         let response = request
-            .post(&format!("/api/books/{}/chapters/{}/children", book.id, parent_chapter.id))
+            .post(&format!(
+                "/api/books/{}/chapters/{}/children",
+                book.id, parent_chapter.id
+            ))
             .add_header(auth_header.0.clone(), auth_header.1.clone())
             .json(&payload)
             .await;
@@ -738,23 +741,9 @@ async fn can_get_chapter_tree() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建父章节
-        let parent1 = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent 1",
-            None,
-        )
-        .await;
+        let parent1 = create_test_chapter(&request, book.id, &auth_header, "Parent 1", None).await;
 
-        let _parent2 = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent 2",
-            None,
-        )
-        .await;
+        let _parent2 = create_test_chapter(&request, book.id, &auth_header, "Parent 2", None).await;
 
         // 为 parent1 创建子章节
         let payload = json!({
@@ -801,33 +790,13 @@ async fn can_move_chapter_to_new_parent() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建两个父章节
-        let parent1 = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent 1",
-            None,
-        )
-        .await;
+        let parent1 = create_test_chapter(&request, book.id, &auth_header, "Parent 1", None).await;
 
-        let _parent2 = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent 2",
-            None,
-        )
-        .await;
+        let _parent2 = create_test_chapter(&request, book.id, &auth_header, "Parent 2", None).await;
 
         // 创建一个独立章节
-        let independent_chapter = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Independent Chapter",
-            None,
-        )
-        .await;
+        let independent_chapter =
+            create_test_chapter(&request, book.id, &auth_header, "Independent Chapter", None).await;
 
         // 将独立章节移动到 parent1 下
         let payload = json!({
@@ -836,7 +805,10 @@ async fn can_move_chapter_to_new_parent() {
         });
 
         let response = request
-            .post(&format!("/api/books/{}/chapters/{}/move", book.id, independent_chapter.id))
+            .post(&format!(
+                "/api/books/{}/chapters/{}/move",
+                book.id, independent_chapter.id
+            ))
             .add_header(auth_header.0.clone(), auth_header.1.clone())
             .json(&payload)
             .await;
@@ -870,13 +842,8 @@ async fn can_get_flat_list_with_level() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建父章节
-        let parent = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent Chapter",
-            None,
-        ).await;
+        let parent =
+            create_test_chapter(&request, book.id, &auth_header, "Parent Chapter", None).await;
 
         // 创建子章节
         let payload = json!({
@@ -923,13 +890,8 @@ async fn can_get_chapter_children() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建父章节
-        let parent = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent Chapter",
-            None,
-        ).await;
+        let parent =
+            create_test_chapter(&request, book.id, &auth_header, "Parent Chapter", None).await;
 
         // 创建多个子章节
         for i in 1..=3 {
@@ -947,7 +909,10 @@ async fn can_get_chapter_children() {
 
         // 获取子章节
         let response = request
-            .get(&format!("/api/books/{}/chapters/{}/children", book.id, parent.id))
+            .get(&format!(
+                "/api/books/{}/chapters/{}/children",
+                book.id, parent.id
+            ))
             .add_header(auth_header.0.clone(), auth_header.1.clone())
             .await;
 
@@ -978,13 +943,8 @@ async fn can_create_deep_nested_chapters() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建多层嵌套章节
-        let level1 = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Level 1 Chapter",
-            None,
-        ).await;
+        let level1 =
+            create_test_chapter(&request, book.id, &auth_header, "Level 1 Chapter", None).await;
 
         let level2_payload = json!({
             "title": "Level 2 Chapter",
@@ -1055,13 +1015,8 @@ async fn can_move_chapter_to_root() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建父章节
-        let parent = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent Chapter",
-            None,
-        ).await;
+        let parent =
+            create_test_chapter(&request, book.id, &auth_header, "Parent Chapter", None).await;
 
         // 创建子章节
         let payload = json!({
@@ -1083,7 +1038,10 @@ async fn can_move_chapter_to_root() {
         });
 
         let response = request
-            .post(&format!("/api/books/{}/chapters/{}/move", book.id, child.id))
+            .post(&format!(
+                "/api/books/{}/chapters/{}/move",
+                book.id, child.id
+            ))
             .add_header(auth_header.0.clone(), auth_header.1.clone())
             .json(&payload)
             .await;
@@ -1117,13 +1075,8 @@ async fn cannot_create_circular_reference() {
         let book = create_test_book(&request, &ctx, &auth_header).await;
 
         // 创建父章节
-        let parent = create_test_chapter(
-            &request,
-            book.id,
-            &auth_header,
-            "Parent Chapter",
-            None,
-        ).await;
+        let parent =
+            create_test_chapter(&request, book.id, &auth_header, "Parent Chapter", None).await;
 
         // 创建子章节
         let payload = json!({
@@ -1145,7 +1098,10 @@ async fn cannot_create_circular_reference() {
         });
 
         let response = request
-            .post(&format!("/api/books/{}/chapters/{}/move", book.id, parent.id))
+            .post(&format!(
+                "/api/books/{}/chapters/{}/move",
+                book.id, parent.id
+            ))
             .add_header(auth_header.0.clone(), auth_header.1.clone())
             .json(&payload)
             .await;

@@ -14,9 +14,7 @@ use migration::Migrator;
 use std::path::Path;
 
 #[allow(unused_imports)]
-use crate::{
-    controllers, initializers, models::_entities::users, tasks, workers,
-};
+use crate::{controllers, initializers, models::_entities::users, tasks, workers};
 
 pub struct App;
 #[async_trait]

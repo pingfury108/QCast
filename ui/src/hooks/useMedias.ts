@@ -32,6 +32,36 @@ export const useChapterMedias = (chapterId: number) => {
   })
 }
 
+// 获取章节的媒体列表（非递归，仅当前章节）
+export const useChapterMediasOnly = (chapterId: number) => {
+  return useQuery({
+    queryKey: ['medias', 'chapter-only', chapterId],
+    queryFn: () => mediasService.getChapterMediasOnly(chapterId),
+    enabled: !!chapterId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// 获取章节的媒体列表（递归，包含所有子章节）
+export const useChapterMediasRecursive = (chapterId: number) => {
+  return useQuery({
+    queryKey: ['medias', 'chapter-recursive', chapterId],
+    queryFn: () => mediasService.getChapterMediasRecursive(chapterId),
+    enabled: !!chapterId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
+// 获取章节的直接子章节列表
+export const useChildChapters = (chapterId: number) => {
+  return useQuery({
+    queryKey: ['chapters', 'children', chapterId],
+    queryFn: () => mediasService.getChildChapters(chapterId),
+    enabled: !!chapterId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+}
+
 export const useMedia = (id: number) => {
   return useQuery({
     queryKey: ['medias', id],

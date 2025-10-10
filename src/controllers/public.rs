@@ -1,17 +1,17 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
+use axum::body::Body;
 use axum::debug_handler;
 use axum::extract::{Path, State};
 use axum::http::{header, StatusCode};
 use axum::response::Response;
-use axum::body::Body;
 use loco_rs::prelude::*;
 use tokio::fs::File;
 use tokio::io::{AsyncSeekExt, SeekFrom};
 
-use crate::models::_entities::medias::{Entity, Column};
-use crate::views::medias::{PublicMediaResponse};
+use crate::models::_entities::medias::{Column, Entity};
+use crate::views::medias::PublicMediaResponse;
 
 /// 通过 access_token 公开访问媒体文件
 #[debug_handler]
@@ -44,9 +44,9 @@ pub async fn get_media(
     // 处理 Range 请求（支持断点续传和拖动播放）
     if let Some(range_value) = headers.get(header::RANGE) {
         // 解析 Range 头
-        let range_str = range_value.to_str().map_err(|_| {
-            Error::BadRequest("无效的 Range 头".to_string())
-        })?;
+        let range_str = range_value
+            .to_str()
+            .map_err(|_| Error::BadRequest("无效的 Range 头".to_string()))?;
 
         if let Some((start, end)) = parse_range_header(range_str, file_size) {
             return serve_range_file(file_path, start, end, file_size, &media.mime_type).await;
@@ -86,7 +86,7 @@ pub async fn get_media_info(
 
 /// 增加播放次数
 async fn increment_play_count(ctx: &AppContext, media_id: i32) -> Result<()> {
-    use sea_orm::{Set, ActiveModelTrait};
+    use sea_orm::{ActiveModelTrait, Set};
 
     let media = Entity::find_by_id(media_id)
         .one(&ctx.db)
@@ -142,18 +142,22 @@ async fn serve_range_file(
     mime_type: &Option<String>,
 ) -> Result<Response> {
     // 打开文件
-    let mut file = File::open(file_path).await
+    let mut file = File::open(file_path)
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
     // 跳转到开始位置
-    file.seek(SeekFrom::Start(start)).await
+    file.seek(SeekFrom::Start(start))
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
     // 读取指定范围的数据
     let mut buffer = Vec::new();
     let remaining = end - start + 1;
     use tokio::io::AsyncReadExt;
-    file.take(remaining).read_to_end(&mut buffer).await
+    file.take(remaining)
+        .read_to_end(&mut buffer)
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
     // 构建 206 Partial Content 响应
@@ -176,7 +180,8 @@ async fn serve_range_file(
 /// 服务完整文件
 async fn serve_full_file(file_path: &str, mime_type: &Option<String>) -> Result<Response> {
     // 读取整个文件
-    let file_contents = tokio::fs::read(file_path).await
+    let file_contents = tokio::fs::read(file_path)
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
     let content_type = mime_type.as_deref().unwrap_or("application/octet-stream");

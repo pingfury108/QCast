@@ -1,8 +1,8 @@
+use image::Luma;
+use loco_rs::prelude::*;
+use qrcode::{render::svg, QrCode};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use loco_rs::prelude::*;
-use qrcode::{QrCode, render::svg};
-use image::Luma;
 
 #[derive(Debug, Clone)]
 pub struct QRCodeService {
@@ -40,15 +40,16 @@ impl QRCodeService {
         self.ensure_dir_exists().await?;
 
         // 生成二维码
-        let code = QrCode::new(data)
-            .map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
+        let code =
+            QrCode::new(data).map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
 
         // 渲染为 PNG
         let image = code.render::<Luma<u8>>().build();
         let qrcode_path = self.get_qrcode_path().join(format!("{}.png", filename));
 
         // 保存到文件
-        image.save(&qrcode_path)
+        image
+            .save(&qrcode_path)
             .map_err(|e| Error::Message(format!("保存二维码失败: {}", e)))?;
 
         Ok(qrcode_path)
@@ -57,8 +58,8 @@ impl QRCodeService {
     /// 生成二维码 SVG 字符串（不保存文件）
     pub fn generate_qrcode_svg_string(&self, data: &str) -> Result<String> {
         // 生成二维码
-        let code = QrCode::new(data)
-            .map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
+        let code =
+            QrCode::new(data).map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
 
         // 渲染为 SVG
         let svg_string = code.render::<svg::Color>().build();
@@ -70,15 +71,16 @@ impl QRCodeService {
         self.ensure_dir_exists().await?;
 
         // 生成二维码
-        let code = QrCode::new(data)
-            .map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
+        let code =
+            QrCode::new(data).map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
 
         // 渲染为 SVG
         let svg_string = code.render::<svg::Color>().build();
         let qrcode_path = self.get_qrcode_path().join(format!("{}.svg", filename));
 
         // 保存到文件
-        fs::write(&qrcode_path, svg_string.as_bytes()).await
+        fs::write(&qrcode_path, svg_string.as_bytes())
+            .await
             .map_err(|e| Error::Message(format!("保存二维码失败: {}", e)))?;
 
         Ok(qrcode_path)
@@ -86,7 +88,9 @@ impl QRCodeService {
 
     /// 删除二维码文件
     pub async fn delete_qrcode(&self, filename: &str, extension: &str) -> Result<()> {
-        let qrcode_path = self.get_qrcode_path().join(format!("{}.{}", filename, extension));
+        let qrcode_path = self
+            .get_qrcode_path()
+            .join(format!("{}.{}", filename, extension));
 
         if qrcode_path.exists() {
             fs::remove_file(&qrcode_path).await?;
@@ -96,14 +100,18 @@ impl QRCodeService {
 
     /// 检查二维码文件是否存在
     pub async fn qrcode_exists(&self, filename: &str, extension: &str) -> bool {
-        let qrcode_path = self.get_qrcode_path().join(format!("{}.{}", filename, extension));
+        let qrcode_path = self
+            .get_qrcode_path()
+            .join(format!("{}.{}", filename, extension));
         qrcode_path.exists()
     }
 
     /// 为媒体生成二维码（使用媒体ID作为文件名，access_url作为数据）
     pub async fn generate_media_qrcode(&self, media_id: i32, access_url: &str) -> Result<String> {
         // 使用 SVG 格式（体积更小，可缩放）
-        let _qrcode_path = self.generate_qrcode_svg(access_url, &media_id.to_string()).await?;
+        let _qrcode_path = self
+            .generate_qrcode_svg(access_url, &media_id.to_string())
+            .await?;
 
         // 返回相对于 static 目录的路径
         Ok(format!("/static/qrcodes/{}.svg", media_id))

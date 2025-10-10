@@ -59,9 +59,27 @@ export const mediasService = {
     return response.data
   },
 
-  // 获取章节的媒体列表
+  // 获取章节的媒体列表（原有方式，兼容性保留）
   async getChapterMedias(chapterId: number): Promise<Media[]> {
     const response = await api.get(`/media?chapter_id=${chapterId}`)
+    return response.data
+  },
+
+  // 获取章节的媒体列表（非递归，仅当前章节）
+  async getChapterMediasOnly(chapterId: number): Promise<Media[]> {
+    const response = await api.get(`/media/by-chapter?chapter_id=${chapterId}`)
+    return response.data
+  },
+
+  // 获取章节的媒体列表（递归，包含所有子章节）
+  async getChapterMediasRecursive(chapterId: number): Promise<Media[]> {
+    const response = await api.get(`/media/by-chapter-recursive?chapter_id=${chapterId}`)
+    return response.data
+  },
+
+  // 获取章节的直接子章节列表
+  async getChildChapters(chapterId: number): Promise<any[]> {
+    const response = await api.get(`/media/chapters/${chapterId}/children`)
     return response.data
   },
 

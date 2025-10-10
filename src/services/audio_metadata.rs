@@ -1,5 +1,5 @@
-use std::path::Path;
 use loco_rs::prelude::*;
+use std::path::Path;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
@@ -8,7 +8,7 @@ use symphonia::default::get_probe;
 /// 音频元数据结构体
 #[derive(Debug, Clone, Default)]
 pub struct AudioMetadata {
-    pub duration: Option<i32>,     // 时长（秒）
+    pub duration: Option<i32>, // 时长（秒）
 }
 
 /// 音频元数据提取服务
@@ -83,7 +83,8 @@ impl AudioMetadataService {
         // 计算时长
         let duration = if let Some(n_frames) = codec_params.n_frames {
             if let Some(time_base) = codec_params.time_base {
-                let duration_secs = n_frames as f64 * time_base.numer as f64 / time_base.denom as f64;
+                let duration_secs =
+                    n_frames as f64 * time_base.numer as f64 / time_base.denom as f64;
                 Some(duration_secs as i32)
             } else {
                 None
@@ -124,8 +125,8 @@ lazy_static::lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::io::Write;
+    use tempfile::TempDir;
 
     #[test]
     fn test_metadata_service_creation() {
@@ -141,10 +142,9 @@ mod tests {
         let mut file = std::fs::File::create(&file_path).unwrap();
         writeln!(file, "This is not an audio file").unwrap();
 
-        let metadata = service.extract_from_file(
-            file_path.to_str().unwrap(),
-            "text/plain"
-        ).unwrap();
+        let metadata = service
+            .extract_from_file(file_path.to_str().unwrap(), "text/plain")
+            .unwrap();
 
         assert_eq!(metadata.duration, None);
     }
@@ -152,10 +152,9 @@ mod tests {
     #[test]
     fn test_nonexistent_file() {
         let service = AudioMetadataService::new();
-        let metadata = service.extract_from_file(
-            "/nonexistent/file.mp3",
-            "audio/mpeg"
-        ).unwrap();
+        let metadata = service
+            .extract_from_file("/nonexistent/file.mp3", "audio/mpeg")
+            .unwrap();
 
         assert_eq!(metadata.duration, None);
     }
@@ -163,10 +162,7 @@ mod tests {
     #[test]
     fn test_fallback_extraction() {
         let service = AudioMetadataService::new();
-        let metadata = service.extract_with_fallback(
-            "/nonexistent/file.mp3",
-            "audio/mpeg"
-        );
+        let metadata = service.extract_with_fallback("/nonexistent/file.mp3", "audio/mpeg");
 
         assert_eq!(metadata.duration, None);
     }
@@ -174,10 +170,7 @@ mod tests {
     #[test]
     fn test_duration_only_extraction() {
         let service = AudioMetadataService::new();
-        let duration = service.extract_duration_only(
-            "/nonexistent/file.mp3",
-            "audio/mpeg"
-        );
+        let duration = service.extract_duration_only("/nonexistent/file.mp3", "audio/mpeg");
 
         assert_eq!(duration, None);
     }

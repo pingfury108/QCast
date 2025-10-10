@@ -55,15 +55,15 @@ impl StorageService {
     pub fn validate_file_type(&self, filename: &str, content_type: &str) -> Result<()> {
         let allowed_types = vec![
             // 音频格式
-            "audio/mpeg",       // MP3
-            "audio/mp4",        // M4A
-            "audio/x-m4a",      // M4A (alternative)
-            "audio/wav",        // WAV
-            "audio/x-wav",      // WAV (alternative)
-            "audio/aac",        // AAC
-            "audio/ogg",        // OGG
-            "audio/flac",       // FLAC
-            "audio/webm",       // WebM Audio
+            "audio/mpeg",  // MP3
+            "audio/mp4",   // M4A
+            "audio/x-m4a", // M4A (alternative)
+            "audio/wav",   // WAV
+            "audio/x-wav", // WAV (alternative)
+            "audio/aac",   // AAC
+            "audio/ogg",   // OGG
+            "audio/flac",  // FLAC
+            "audio/webm",  // WebM Audio
             // 视频格式
             "video/mp4",        // MP4
             "video/quicktime",  // MOV
@@ -309,8 +309,8 @@ impl StorageService {
 
         // 逐块读取并写入
         while let Some(chunk_result) = stream.next().await {
-            let chunk = chunk_result
-                .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?;
+            let chunk =
+                chunk_result.map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?;
 
             total_size += chunk.len() as u64;
 
@@ -365,7 +365,8 @@ impl StorageService {
         let final_path = media_path.join(&unique_filename);
 
         // 移动文件（这是原子操作，比复制+删除更高效）
-        fs::rename(temp_file_path, &final_path).await
+        fs::rename(temp_file_path, &final_path)
+            .await
             .map_err(|e| Error::Message(format!("移动文件失败: {}", e)))?;
 
         Ok(UploadedFile {

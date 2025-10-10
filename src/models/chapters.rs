@@ -1,13 +1,13 @@
 pub use super::_entities::books;
 pub use super::_entities::chapters::{ActiveModel, Column, Entity, Model};
 use sea_orm::entity::prelude::*;
+use sea_orm::DatabaseTransaction;
 use sea_orm::IntoActiveModel;
 use sea_orm::QueryOrder;
 use sea_orm::QuerySelect;
 use sea_orm::Set;
 use sea_orm::TransactionTrait;
-use sea_orm::DatabaseTransaction;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 pub type Chapters = Entity;
 
 /// 章节树状结构
@@ -77,7 +77,10 @@ impl Model {
     }
 
     /// 获取带媒体计数的章节
-    pub async fn find_by_book_with_media_count(db: &DatabaseConnection, book_id: i32) -> Result<Vec<(Model, i64)>, DbErr> {
+    pub async fn find_by_book_with_media_count(
+        db: &DatabaseConnection,
+        book_id: i32,
+    ) -> Result<Vec<(Model, i64)>, DbErr> {
         use crate::models::_entities::medias;
 
         let chapters = Entity::find()
@@ -271,10 +274,14 @@ impl Model {
 
     /// 获取章节的完整树形结构（递归获取所有子章节）
     pub async fn get_tree(db: &DatabaseConnection, chapter_id: i32) -> Result<ChapterTree, DbErr> {
-        let chapter = Entity::find_by_id(chapter_id)
-            .one(db)
-            .await?
-            .ok_or(DbErr::RecordNotFound(format!("Chapter {} not found", chapter_id)))?;
+        let chapter =
+            Entity::find_by_id(chapter_id)
+                .one(db)
+                .await?
+                .ok_or(DbErr::RecordNotFound(format!(
+                    "Chapter {} not found",
+                    chapter_id
+                )))?;
 
         // 获取媒体计数
         let media_count = crate::models::_entities::medias::Entity::find()
@@ -386,10 +393,14 @@ impl Model {
     ) -> Result<(), DbErr> {
         if let Some(parent_id) = parent_id {
             // 获取父章节信息
-            let parent = Entity::find_by_id(parent_id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::RecordNotFound(format!("Parent chapter {} not found", parent_id)))?;
+            let parent =
+                Entity::find_by_id(parent_id)
+                    .one(db)
+                    .await?
+                    .ok_or(DbErr::RecordNotFound(format!(
+                        "Parent chapter {} not found",
+                        parent_id
+                    )))?;
 
             let level = parent.level.unwrap_or(0) + 1;
             let path = match parent.path {
@@ -398,10 +409,14 @@ impl Model {
             };
 
             // 更新当前章节
-            let chapter = Entity::find_by_id(chapter_id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::RecordNotFound(format!("Chapter {} not found", chapter_id)))?;
+            let chapter =
+                Entity::find_by_id(chapter_id)
+                    .one(db)
+                    .await?
+                    .ok_or(DbErr::RecordNotFound(format!(
+                        "Chapter {} not found",
+                        chapter_id
+                    )))?;
 
             let mut active_chapter = chapter.into_active_model();
             active_chapter.level = Set(Some(level));
@@ -412,10 +427,14 @@ impl Model {
             Self::update_children_level_and_path(db, chapter_id, level, &path).await?;
         } else {
             // 顶级章节
-            let chapter = Entity::find_by_id(chapter_id)
-                .one(db)
-                .await?
-                .ok_or(DbErr::RecordNotFound(format!("Chapter {} not found", chapter_id)))?;
+            let chapter =
+                Entity::find_by_id(chapter_id)
+                    .one(db)
+                    .await?
+                    .ok_or(DbErr::RecordNotFound(format!(
+                        "Chapter {} not found",
+                        chapter_id
+                    )))?;
 
             let mut active_chapter = chapter.into_active_model();
             active_chapter.level = Set(Some(0));
@@ -423,7 +442,8 @@ impl Model {
             active_chapter.update(db).await?;
 
             // 递归更新所有子章节的层级和路径
-            Self::update_children_level_and_path(db, chapter_id, 0, &chapter_id.to_string()).await?;
+            Self::update_children_level_and_path(db, chapter_id, 0, &chapter_id.to_string())
+                .await?;
         }
 
         Ok(())
@@ -452,7 +472,10 @@ impl Model {
             active_child.update(db).await?;
 
             // 递归更新子章节的子章节
-            Box::pin(Self::update_children_level_and_path(db, child_id, level, &path)).await?;
+            Box::pin(Self::update_children_level_and_path(
+                db, child_id, level, &path,
+            ))
+            .await?;
         }
 
         Ok(())
@@ -465,15 +488,21 @@ impl Model {
         new_parent_id: Option<i32>,
         new_sort_order: Option<i32>,
     ) -> Result<(), DbErr> {
-        let chapter = Entity::find_by_id(chapter_id)
-            .one(db)
-            .await?
-            .ok_or(DbErr::RecordNotFound(format!("Chapter {} not found", chapter_id)))?;
+        let chapter =
+            Entity::find_by_id(chapter_id)
+                .one(db)
+                .await?
+                .ok_or(DbErr::RecordNotFound(format!(
+                    "Chapter {} not found",
+                    chapter_id
+                )))?;
 
         // 检查是否会形成循环引用
         if let Some(new_parent_id) = new_parent_id {
             if Self::would_create_cycle(db, chapter_id, new_parent_id).await? {
-                return Err(DbErr::Custom("Moving chapter would create a cycle".to_string()));
+                return Err(DbErr::Custom(
+                    "Moving chapter would create a cycle".to_string(),
+                ));
             }
         }
 
@@ -563,7 +592,8 @@ impl ActiveModel {
             .one(db)
             .await?
             .flatten()
-            .unwrap_or(0) + 1;
+            .unwrap_or(0)
+            + 1;
 
         Ok(Self {
             book_id: Set(book_id),

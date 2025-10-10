@@ -1,5 +1,5 @@
-use std::path::Path;
 use loco_rs::prelude::*;
+use std::path::Path;
 
 /// 视频元数据结构体
 #[derive(Debug, Clone, Default)]
@@ -30,8 +30,7 @@ impl VideoMetadataService {
         }
 
         // 初始化 FFmpeg（只需要初始化一次）
-        ffmpeg_next::init()
-            .map_err(|e| Error::Message(format!("FFmpeg 初始化失败: {}", e)))?;
+        ffmpeg_next::init().map_err(|e| Error::Message(format!("FFmpeg 初始化失败: {}", e)))?;
 
         // 打开输入文件
         let input = ffmpeg_next::format::input(&file_path)
@@ -48,12 +47,16 @@ impl VideoMetadataService {
             })
         } else {
             // 尝试从流中获取时长
-            let duration = input.streams().best(ffmpeg_next::media::Type::Video)
+            let duration = input
+                .streams()
+                .best(ffmpeg_next::media::Type::Video)
                 .and_then(|stream| {
                     let duration_ts = stream.duration();
                     if duration_ts > 0 {
                         let time_base = stream.time_base();
-                        let duration_secs = (duration_ts as f64 * time_base.numerator() as f64 / time_base.denominator() as f64).round() as i32;
+                        let duration_secs = (duration_ts as f64 * time_base.numerator() as f64
+                            / time_base.denominator() as f64)
+                            .round() as i32;
                         Some(duration_secs)
                     } else {
                         None
@@ -103,10 +106,9 @@ mod tests {
     #[test]
     fn test_non_video_file() {
         let service = VideoMetadataService::new();
-        let metadata = service.extract_from_file(
-            "/nonexistent/file.txt",
-            "text/plain"
-        ).unwrap();
+        let metadata = service
+            .extract_from_file("/nonexistent/file.txt", "text/plain")
+            .unwrap();
 
         assert_eq!(metadata.duration, None);
     }
@@ -114,10 +116,9 @@ mod tests {
     #[test]
     fn test_nonexistent_file() {
         let service = VideoMetadataService::new();
-        let metadata = service.extract_from_file(
-            "/nonexistent/file.mp4",
-            "video/mp4"
-        ).unwrap();
+        let metadata = service
+            .extract_from_file("/nonexistent/file.mp4", "video/mp4")
+            .unwrap();
 
         assert_eq!(metadata.duration, None);
     }
@@ -125,10 +126,7 @@ mod tests {
     #[test]
     fn test_fallback_extraction() {
         let service = VideoMetadataService::new();
-        let metadata = service.extract_with_fallback(
-            "/nonexistent/file.mp4",
-            "video/mp4"
-        );
+        let metadata = service.extract_with_fallback("/nonexistent/file.mp4", "video/mp4");
 
         assert_eq!(metadata.duration, None);
     }

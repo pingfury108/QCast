@@ -1,0 +1,30 @@
+---
+source: tests/requests/medias.rs
+expression: child_chapters
+---
+[
+    Object {
+        "book_id": Number(1),
+        "created_at": String("2025-10-10T09:59:39Z"),
+        "description": String("First child chapter"),
+        "id": Number(2),
+        "level": Number(1),
+        "parent_id": Number(1),
+        "path": String("1/2"),
+        "sort_order": Null,
+        "title": String("Child Chapter 1"),
+        "updated_at": String("2025-10-10T09:59:39.069127Z"),
+    },
+    Object {
+        "book_id": Number(1),
+        "created_at": String("2025-10-10T09:59:39Z"),
+        "description": String("Second child chapter"),
+        "id": Number(3),
+        "level": Number(1),
+        "parent_id": Number(1),
+        "path": String("1/3"),
+        "sort_order": Null,
+        "title": String("Child Chapter 2"),
+        "updated_at": String("2025-10-10T09:59:39.071427Z"),
+    },
+]

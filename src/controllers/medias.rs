@@ -2,21 +2,20 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
-use axum::extract::{Path as AxumPath, Query, DefaultBodyLimit};
+use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query};
 use axum::routing::method_routing::delete as axum_delete;
 use axum_extra::extract::Multipart;
 use loco_rs::prelude::*;
 use uuid::Uuid;
 
+use crate::models::_entities::chapters;
 use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
 use crate::models::users;
-use crate::services::storage::StorageService;
-use crate::services::qrcode::QRCODE_SERVICE;
 use crate::services::audio_metadata::AUDIO_METADATA_SERVICE;
+use crate::services::qrcode::QRCODE_SERVICE;
+use crate::services::storage::StorageService;
 use crate::services::video_metadata::VIDEO_METADATA_SERVICE;
 use crate::views::medias::{MediaResponse, UpdateMediaParams};
-
-
 
 async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     let item = Entity::find_by_id(id)
@@ -26,16 +25,25 @@ async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     item.ok_or_else(|| Error::NotFound)
 }
 
-/// 获取当前用户的所有媒体
+/// 获取当前用户的所有媒体，支持按 book_id 过滤
 #[debug_handler]
-pub async fn list(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Response> {
+pub async fn list(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
-    let medias = Entity::find()
-        .filter(Column::UserId.eq(user.id))
-        .all(&ctx.db)
-        .await?;
+    let mut query = Entity::find().filter(Column::UserId.eq(user.id));
 
+    // 如果提供了 book_id 参数，添加过滤条件
+    if let Some(book_id_str) = params.get("book_id") {
+        if let Ok(book_id) = book_id_str.parse::<i32>() {
+            query = query.filter(Column::BookId.eq(book_id));
+        }
+    }
+
+    let medias = query.all(&ctx.db).await?;
     let responses: Vec<MediaResponse> = medias.into_iter().map(MediaResponse::from).collect();
 
     format::json(responses)
@@ -125,7 +133,8 @@ pub async fn delete(
 
     // 删除二维码文件
     if let Some(ref qr_path) = item.qr_code_path {
-        let qr_full_path = std::path::Path::new("assets/static").join(qr_path.trim_start_matches('/'));
+        let qr_full_path =
+            std::path::Path::new("assets/static").join(qr_path.trim_start_matches('/'));
         if tokio::fs::metadata(&qr_full_path).await.is_ok() {
             if let Err(e) = tokio::fs::remove_file(&qr_full_path).await {
                 tracing::warn!("删除二维码文件失败: {:?}, 错误: {}", qr_full_path, e);
@@ -159,6 +168,149 @@ pub async fn search(
     let responses: Vec<MediaResponse> = medias.into_iter().map(MediaResponse::from).collect();
 
     format::json(responses)
+}
+
+/// 获取章节的媒体列表（非递归，仅当前章节）
+#[debug_handler]
+pub async fn list_by_chapter(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    let chapter_id = params
+        .get("chapter_id")
+        .and_then(|id| id.parse::<i32>().ok())
+        .ok_or_else(|| Error::BadRequest("缺少有效的章节ID".to_string()))?;
+
+    // 验证章节存在且属于用户
+    let chapter = chapters::Entity::find_by_id(chapter_id)
+        .one(&ctx.db)
+        .await?;
+    if let Some(chapter) = chapter {
+        // 验证书籍是否属于当前用户
+        let book = crate::models::_entities::books::Entity::find_by_id(chapter.book_id)
+            .filter(crate::models::_entities::books::Column::UserId.eq(user.id))
+            .one(&ctx.db)
+            .await?;
+
+        if book.is_none() {
+            return Err(Error::NotFound);
+        }
+    } else {
+        return Err(Error::NotFound);
+    }
+
+    let medias = Entity::find()
+        .filter(Column::ChapterId.eq(chapter_id))
+        .filter(Column::UserId.eq(user.id))
+        .all(&ctx.db)
+        .await?;
+
+    let responses: Vec<MediaResponse> = medias.into_iter().map(MediaResponse::from).collect();
+    format::json(responses)
+}
+
+/// 获取章节的媒体列表（递归，包含所有子章节）
+#[debug_handler]
+pub async fn list_by_chapter_recursive(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    let chapter_id = params
+        .get("chapter_id")
+        .and_then(|id| id.parse::<i32>().ok())
+        .ok_or_else(|| Error::BadRequest("缺少有效的章节ID".to_string()))?;
+
+    // 验证章节存在且属于用户
+    let chapter = chapters::Entity::find_by_id(chapter_id)
+        .one(&ctx.db)
+        .await?;
+    if let Some(ref chapter) = chapter {
+        // 验证书籍是否属于当前用户
+        let book = crate::models::_entities::books::Entity::find_by_id(chapter.book_id)
+            .filter(crate::models::_entities::books::Column::UserId.eq(user.id))
+            .one(&ctx.db)
+            .await?;
+
+        if book.is_none() {
+            return Err(Error::NotFound);
+        }
+    } else {
+        return Err(Error::NotFound);
+    }
+
+    // 获取当前章节的path
+    let chapter_path = chapter
+        .as_ref()
+        .unwrap()
+        .path
+        .as_ref()
+        .ok_or_else(|| Error::Message("章节路径未设置".to_string()))?;
+
+    // 查找所有以当前章节路径开头的章节（包含当前章节和所有子章节）
+    let related_chapters = chapters::Entity::find()
+        .filter(
+            chapters::Column::Path
+                .like(format!("{}%", chapter_path))
+                .or(chapters::Column::Id.eq(chapter_id)),
+        )
+        .all(&ctx.db)
+        .await?;
+
+    // 收集所有相关章节的ID
+    let chapter_ids: Vec<i32> = related_chapters.iter().map(|c| c.id).collect();
+
+    // 获取所有这些章节的媒体
+    let medias = Entity::find()
+        .filter(Column::ChapterId.is_in(chapter_ids))
+        .filter(Column::UserId.eq(user.id))
+        .all(&ctx.db)
+        .await?;
+
+    let responses: Vec<MediaResponse> = medias.into_iter().map(MediaResponse::from).collect();
+    format::json(responses)
+}
+
+/// 获取章节的直接子章节列表
+#[debug_handler]
+pub async fn list_child_chapters(
+    auth: auth::JWT,
+    State(ctx): State<AppContext>,
+    Path(chapter_id): Path<i32>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    // 验证父章节存在且属于用户
+    let parent_chapter = chapters::Entity::find_by_id(chapter_id)
+        .one(&ctx.db)
+        .await?;
+    let book_id = if let Some(ref parent_chapter) = parent_chapter {
+        // 验证书籍是否属于当前用户
+        let book = crate::models::_entities::books::Entity::find_by_id(parent_chapter.book_id)
+            .filter(crate::models::_entities::books::Column::UserId.eq(user.id))
+            .one(&ctx.db)
+            .await?;
+
+        if book.is_none() {
+            return Err(Error::NotFound);
+        }
+        parent_chapter.book_id
+    } else {
+        return Err(Error::NotFound);
+    };
+
+    let child_chapters = chapters::Entity::find()
+        .filter(chapters::Column::ParentId.eq(chapter_id))
+        .filter(chapters::Column::BookId.eq(book_id))
+        .all(&ctx.db)
+        .await?;
+
+    format::json(child_chapters)
 }
 
 /// 上传媒体文件
@@ -196,9 +348,11 @@ pub async fn upload(
                 let field_content_type = field.content_type().map(|s| s.to_string());
 
                 // 验证必需信息
-                let fname = field_filename.clone()
+                let fname = field_filename
+                    .clone()
                     .ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
-                let ctype = field_content_type.clone()
+                let ctype = field_content_type
+                    .clone()
                     .ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
 
                 // 先验证文件类型
@@ -218,7 +372,9 @@ pub async fn upload(
                 let mut total_size: u64 = 0;
 
                 // 逐块读取并写入
-                while let Some(chunk) = field.chunk().await
+                while let Some(chunk) = field
+                    .chunk()
+                    .await
                     .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
                 {
                     total_size += chunk.len() as u64;
@@ -294,10 +450,8 @@ pub async fn upload(
     }
 
     // 验证必需字段
-    let temp_path = temp_file_path
-        .ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
-    let file_size = file_size
-        .ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
+    let temp_path = temp_file_path.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let file_size = file_size.ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
     let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
     let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
     let title = title.ok_or_else(|| Error::Message("缺少标题".to_string()))?;
@@ -324,7 +478,14 @@ pub async fn upload(
     // 使用存储服务移动临时文件到永久位置
     let storage = StorageService::new("uploads");
     let uploaded_file = storage
-        .move_temp_file(user.id, book_id, &temp_path, &filename, &content_type, file_size)
+        .move_temp_file(
+            user.id,
+            book_id,
+            &temp_path,
+            &filename,
+            &content_type,
+            file_size,
+        )
         .await?;
 
     // 确定文件类型
@@ -333,25 +494,29 @@ pub async fn upload(
     // 提取元数据（包含时长）- 使用原始文件
     let duration = if content_type.starts_with("video/") {
         // 视频文件使用 FFmpeg 提取
-        let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
-            &uploaded_file.path.to_string_lossy(),
-            &content_type
-        );
+        let metadata = VIDEO_METADATA_SERVICE
+            .extract_with_fallback(&uploaded_file.path.to_string_lossy(), &content_type);
         metadata.duration
     } else {
         // 音频文件使用 Symphonia 提取
-        let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
-            &uploaded_file.path.to_string_lossy(),
-            &content_type
-        );
+        let metadata = AUDIO_METADATA_SERVICE
+            .extract_with_fallback(&uploaded_file.path.to_string_lossy(), &content_type);
         metadata.duration
     };
 
     // 记录时长提取结果
     if duration.is_some() {
-        tracing::info!("媒体文件时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
+        tracing::info!(
+            "媒体文件时长提取成功: {}秒 - 文件: {:?}",
+            duration.unwrap(),
+            filename
+        );
     } else if content_type.starts_with("audio/") || content_type.starts_with("video/") {
-        tracing::warn!("媒体文件时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+        tracing::warn!(
+            "媒体文件时长提取失败: 文件: {}, MIME类型: {}",
+            filename,
+            content_type
+        );
     }
 
     // 生成访问令牌
@@ -392,7 +557,8 @@ pub async fn upload(
         let ctx_clone = ctx.clone();
 
         tokio::spawn(async move {
-            if let Err(e) = generate_qrcode_for_media(&ctx_clone, media_id, &access_url_clone).await {
+            if let Err(e) = generate_qrcode_for_media(&ctx_clone, media_id, &access_url_clone).await
+            {
                 tracing::error!("异步生成二维码失败: {}", e);
             }
         });
@@ -438,9 +604,11 @@ pub async fn replace_file(
             let field_content_type = field.content_type().map(|s| s.to_string());
 
             // 验证必需信息
-            let fname = field_filename.clone()
+            let fname = field_filename
+                .clone()
                 .ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
-            let ctype = field_content_type.clone()
+            let ctype = field_content_type
+                .clone()
                 .ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
 
             // 先验证文件类型
@@ -460,7 +628,9 @@ pub async fn replace_file(
             let mut total_size: u64 = 0;
 
             // 逐块读取并写入
-            while let Some(chunk) = field.chunk().await
+            while let Some(chunk) = field
+                .chunk()
+                .await
                 .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
             {
                 total_size += chunk.len() as u64;
@@ -495,45 +665,56 @@ pub async fn replace_file(
     }
 
     // 验证必需字段
-    let temp_path = temp_file_path
-        .ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
-    let file_size = file_size
-        .ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
+    let temp_path = temp_file_path.ok_or_else(|| Error::Message("缺少文件数据".to_string()))?;
+    let file_size = file_size.ok_or_else(|| Error::Message("未获取文件大小".to_string()))?;
     let filename = filename.ok_or_else(|| Error::Message("缺少文件名".to_string()))?;
     let content_type = content_type.ok_or_else(|| Error::Message("缺少文件类型".to_string()))?;
 
     // 使用存储服务移动临时文件到永久位置（替换旧文件）
     let storage = StorageService::new("uploads");
     let uploaded_file = storage
-        .move_temp_file(user.id, book_id, &temp_path, &filename, &content_type, file_size)
+        .move_temp_file(
+            user.id,
+            book_id,
+            &temp_path,
+            &filename,
+            &content_type,
+            file_size,
+        )
         .await?;
 
     // 删除旧文件
-    let _ = storage.delete_file(std::path::Path::new(&old_file_path)).await;
+    let _ = storage
+        .delete_file(std::path::Path::new(&old_file_path))
+        .await;
 
     // 确定文件类型
     let file_type = storage.determine_file_type(&content_type)?;
 
     // 提取元数据（包含时长）- 使用原始文件
     let duration = if content_type.starts_with("video/") {
-        let metadata = VIDEO_METADATA_SERVICE.extract_with_fallback(
-            &uploaded_file.path.to_string_lossy(),
-            &content_type
-        );
+        let metadata = VIDEO_METADATA_SERVICE
+            .extract_with_fallback(&uploaded_file.path.to_string_lossy(), &content_type);
         metadata.duration
     } else {
-        let metadata = AUDIO_METADATA_SERVICE.extract_with_fallback(
-            &uploaded_file.path.to_string_lossy(),
-            &content_type
-        );
+        let metadata = AUDIO_METADATA_SERVICE
+            .extract_with_fallback(&uploaded_file.path.to_string_lossy(), &content_type);
         metadata.duration
     };
 
     // 记录时长提取结果
     if duration.is_some() {
-        tracing::info!("媒体文件替换后时长提取成功: {}秒 - 文件: {:?}", duration.unwrap(), filename);
+        tracing::info!(
+            "媒体文件替换后时长提取成功: {}秒 - 文件: {:?}",
+            duration.unwrap(),
+            filename
+        );
     } else if content_type.starts_with("audio/") || content_type.starts_with("video/") {
-        tracing::warn!("媒体文件替换后时长提取失败: 文件: {}, MIME类型: {}", filename, content_type);
+        tracing::warn!(
+            "媒体文件替换后时长提取失败: 文件: {}, MIME类型: {}",
+            filename,
+            content_type
+        );
     }
 
     // 更新媒体记录（保持 access_token 不变）
@@ -580,11 +761,10 @@ async fn generate_qrcode_for_media(
     let mut active_model: crate::models::_entities::medias::ActiveModel = media.into();
     active_model.qr_code_path = Set(Some(qrcode_path.clone()));
 
-    active_model.update(&ctx.db).await
-        .map_err(|e| {
-            tracing::error!("更新媒体 {} 的二维码路径失败: {}", media_id, e);
-            Error::Message(format!("更新二维码路径失败: {}", e))
-        })?;
+    active_model.update(&ctx.db).await.map_err(|e| {
+        tracing::error!("更新媒体 {} 的二维码路径失败: {}", media_id, e);
+        Error::Message(format!("更新二维码路径失败: {}", e))
+    })?;
 
     tracing::info!("媒体 {} 的二维码生成完成: {}", media_id, qrcode_path);
 
@@ -617,7 +797,9 @@ pub async fn get_qrcode(
     let media = load_item(&ctx, id, user.id).await?;
 
     // 获取访问链接
-    let access_url = media.access_url.as_ref()
+    let access_url = media
+        .access_url
+        .as_ref()
         .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
 
     // 生成二维码 SVG 字符串
@@ -635,8 +817,8 @@ pub async fn get_qrcode(
     }
 
     // 直接返回二维码图片数据
-    use axum::http::{header, StatusCode};
     use axum::body::Body;
+    use axum::http::{header, StatusCode};
 
     let response = Response::builder()
         .status(StatusCode::OK)
@@ -659,7 +841,9 @@ pub async fn regenerate_qrcode(
     let media = load_item(&ctx, id, user.id).await?;
 
     // 重新生成二维码
-    let access_url = media.access_url.as_ref()
+    let access_url = media
+        .access_url
+        .as_ref()
         .ok_or_else(|| Error::Message("访问链接未生成".to_string()))?;
 
     let qrcode_relative_path = QRCODE_SERVICE
@@ -688,10 +872,10 @@ pub async fn stream_media(
     State(ctx): State<AppContext>,
     headers: axum::http::HeaderMap,
 ) -> Result<Response> {
-    use axum::http::{header, StatusCode};
     use axum::body::Body;
+    use axum::http::{header, StatusCode};
     use tokio::fs::File;
-    use tokio::io::{AsyncSeekExt, SeekFrom, AsyncReadExt};
+    use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
 
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
     let media = load_item(&ctx, id, user.id).await?;
@@ -704,28 +888,35 @@ pub async fn stream_media(
 
     // 获取文件大小
     let file_size = tokio::fs::metadata(file_path).await?.len();
-    let content_type = media.mime_type.as_deref().unwrap_or("application/octet-stream");
+    let content_type = media
+        .mime_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
 
     // 处理 Range 请求（支持断点续传和视频拖动）
     if let Some(range_value) = headers.get(header::RANGE) {
-        let range_str = range_value.to_str().map_err(|_| {
-            Error::BadRequest("无效的 Range 头".to_string())
-        })?;
+        let range_str = range_value
+            .to_str()
+            .map_err(|_| Error::BadRequest("无效的 Range 头".to_string()))?;
 
         // 解析 Range 头
         if let Some((start, end)) = parse_stream_range(range_str, file_size) {
             // 打开文件
-            let mut file = File::open(file_path).await
+            let mut file = File::open(file_path)
+                .await
                 .map_err(|_| Error::InternalServerError)?;
 
             // 跳转到开始位置
-            file.seek(SeekFrom::Start(start)).await
+            file.seek(SeekFrom::Start(start))
+                .await
                 .map_err(|_| Error::InternalServerError)?;
 
             // 读取指定范围的数据
             let mut buffer = Vec::new();
             let remaining = end - start + 1;
-            file.take(remaining).read_to_end(&mut buffer).await
+            file.take(remaining)
+                .read_to_end(&mut buffer)
+                .await
                 .map_err(|_| Error::InternalServerError)?;
 
             // 构建 206 Partial Content 响应
@@ -745,7 +936,8 @@ pub async fn stream_media(
     }
 
     // 完整文件服务
-    let file_contents = tokio::fs::read(file_path).await
+    let file_contents = tokio::fs::read(file_path)
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
     let response = Response::builder()
@@ -794,15 +986,18 @@ pub fn routes() -> Routes {
         // 上传路由需要更大的 body limit (2.5GB)
         .add(
             "/upload",
-            post(upload).layer(DefaultBodyLimit::max(2_500_000_000))
+            post(upload).layer(DefaultBodyLimit::max(2_500_000_000)),
         )
         // 替换文件路由也需要更大的 body limit
         .add(
             "/{id}/replace-file",
-            put(replace_file).layer(DefaultBodyLimit::max(2_500_000_000))
+            put(replace_file).layer(DefaultBodyLimit::max(2_500_000_000)),
         )
         .add("/", get(list))
         .add("/search", get(search))
+        .add("/by-chapter", get(list_by_chapter))
+        .add("/by-chapter-recursive", get(list_by_chapter_recursive))
+        .add("/chapters/{id}/children", get(list_child_chapters))
         .add("/{id}", get(show))
         .add("/{id}", put(update))
         .add("/{id}", patch(update))

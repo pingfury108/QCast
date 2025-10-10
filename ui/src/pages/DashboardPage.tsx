@@ -13,10 +13,6 @@ export default function DashboardPage() {
   const topMedias = Array.isArray(topMediasData) ? topMediasData : []
   const recentMedias = Array.isArray(recentMediasData) ? recentMediasData : []
 
-  // 调试输出
-  console.log('Dashboard data:', { stats, topMediasData, recentMediasData })
-  console.log('Dashboard errors:', { statsError, topError, recentError })
-
   if (statsLoading) {
     return (
       <div className="container mx-auto px-4 py-8">

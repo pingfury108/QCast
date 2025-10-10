@@ -10,11 +10,7 @@ impl MigrationTrait for Migration {
         m.alter_table(
             Table::alter()
                 .table(Chapters::Table)
-                .add_column(
-                    ColumnDef::new(Chapters::ParentId)
-                        .integer()
-                        .null(),
-                )
+                .add_column(ColumnDef::new(Chapters::ParentId).integer().null())
                 .to_owned(),
         )
         .await?;
@@ -22,11 +18,7 @@ impl MigrationTrait for Migration {
         m.alter_table(
             Table::alter()
                 .table(Chapters::Table)
-                .add_column(
-                    ColumnDef::new(Chapters::Level)
-                        .integer()
-                        .null(),
-                )
+                .add_column(ColumnDef::new(Chapters::Level).integer().null())
                 .to_owned(),
         )
         .await?;
@@ -34,11 +26,7 @@ impl MigrationTrait for Migration {
         m.alter_table(
             Table::alter()
                 .table(Chapters::Table)
-                .add_column(
-                    ColumnDef::new(Chapters::Path)
-                        .text()
-                        .null(),
-                )
+                .add_column(ColumnDef::new(Chapters::Path).text().null())
                 .to_owned(),
         )
         .await?;

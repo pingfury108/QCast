@@ -67,7 +67,6 @@ async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     item.ok_or_else(|| Error::NotFound)
 }
 
-
 /// 获取书籍的章节列表
 #[debug_handler]
 pub async fn list(
@@ -85,9 +84,10 @@ pub async fn list(
         .ok_or_else(|| Error::NotFound)?;
 
     let chapters_with_media = Model::find_by_book_with_media_count(&ctx.db, book_id).await?;
-    let responses: Vec<ChapterResponse> = chapters_with_media.into_iter().map(|(chapter, media_count)| {
-        ChapterResponse::from_with_media_count(chapter, media_count)
-    }).collect();
+    let responses: Vec<ChapterResponse> = chapters_with_media
+        .into_iter()
+        .map(|(chapter, media_count)| ChapterResponse::from_with_media_count(chapter, media_count))
+        .collect();
 
     format::json(responses)
 }
@@ -125,8 +125,14 @@ pub async fn create(
             .await?
         } else {
             // 自动获取同级下一个排序号
-            let item = ActiveModel::create_child(&ctx.db, book_id, parent_chapter_id, params.title, params.description)
-                .await?;
+            let item = ActiveModel::create_child(
+                &ctx.db,
+                book_id,
+                parent_chapter_id,
+                params.title,
+                params.description,
+            )
+            .await?;
             item.insert(&ctx.db).await?
         }
     } else if let Some(sort_order) = params.sort_order {
@@ -149,7 +155,8 @@ pub async fn create(
     };
 
     // 更新层级和路径信息
-    crate::models::chapters::Model::update_level_and_path(&ctx.db, item.id, params.parent_id).await?;
+    crate::models::chapters::Model::update_level_and_path(&ctx.db, item.id, params.parent_id)
+        .await?;
 
     // 重新加载更新的数据
     let updated_item = crate::models::_entities::chapters::Entity::find_by_id(item.id)
@@ -381,8 +388,14 @@ pub async fn create_child(
         .await?
     } else {
         // 自动获取同级下一个排序号
-        let item = ActiveModel::create_child(&ctx.db, parent_chapter.book_id, id, params.title, params.description)
-            .await?;
+        let item = ActiveModel::create_child(
+            &ctx.db,
+            parent_chapter.book_id,
+            id,
+            params.title,
+            params.description,
+        )
+        .await?;
         item.insert(&ctx.db).await?
     };
 
@@ -424,11 +437,15 @@ pub async fn move_chapter(
         }
     }
 
-      if let Err(e) = Model::move_to_parent(&ctx.db, id, params.new_parent_id, params.new_sort_order).await {
+    if let Err(e) =
+        Model::move_to_parent(&ctx.db, id, params.new_parent_id, params.new_sort_order).await
+    {
         // 处理循环引用错误
         match e {
             sea_orm::DbErr::Custom(ref msg) if msg.contains("cycle") => {
-                return Err(Error::BadRequest("Moving chapter would create a cycle".to_string()));
+                return Err(Error::BadRequest(
+                    "Moving chapter would create a cycle".to_string(),
+                ));
             }
             _ => return Err(e.into()),
         }

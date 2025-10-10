@@ -1,0 +1,28 @@
+---
+source: tests/requests/medias.rs
+expression: parent_medias
+---
+[
+    Object {
+        "access_token": String("a3ff1c4c-1354-4cef-95a3-c07c7065cf0a"),
+        "access_url": String("http://localhost:5150/public/media/a3ff1c4c-1354-4cef-95a3-c07c7065cf0a"),
+        "book_id": Number(1),
+        "chapter_id": Number(1),
+        "created_at": String("2025-10-10T09:59:42Z"),
+        "description": String("Media in parent chapter"),
+        "duration": Number(120),
+        "file_path": String("/test/path.mp3"),
+        "file_size": Number(1024000),
+        "file_type": String("audio"),
+        "file_version": Number(1),
+        "id": Number(1),
+        "is_public": Bool(false),
+        "mime_type": String("audio/mpeg"),
+        "original_filename": String("test.mp3"),
+        "play_count": Number(0),
+        "qr_code_path": Null,
+        "title": String("Parent Media"),
+        "updated_at": String("2025-10-10T09:59:42.367823Z"),
+        "user_id": Number(1),
+    },
+]
