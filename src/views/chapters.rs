@@ -54,6 +54,7 @@ impl From<(Model, i64)> for ChapterResponse {
 
 impl ChapterResponse {
     /// 从带媒体计数的章节创建响应
+    #[must_use]
     pub fn from_with_media_count(chapter: Model, media_count: i64) -> Self {
         Self {
             id: chapter.id,
@@ -71,6 +72,7 @@ impl ChapterResponse {
     }
 
     /// 从章节树结构创建响应
+    #[must_use]
     pub fn from_chapter_tree(chapter_tree: crate::models::chapters::ChapterTree) -> Self {
         Self {
             id: chapter_tree.id,

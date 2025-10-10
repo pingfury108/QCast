@@ -266,6 +266,10 @@ pub async fn batch_reorder(
 }
 
 /// 章节上移
+///
+/// # Panics
+///
+/// Panics if the chapter cannot be found after moving (should never happen in normal operation)
 #[debug_handler]
 pub async fn move_up(
     auth: auth::JWT,
@@ -286,6 +290,10 @@ pub async fn move_up(
 }
 
 /// 章节下移
+///
+/// # Panics
+///
+/// Panics if the chapter cannot be found after moving (should never happen in normal operation)
 #[debug_handler]
 pub async fn move_down(
     auth: auth::JWT,
@@ -412,6 +420,10 @@ pub async fn create_child(
 }
 
 /// 移动章节到新的父级
+///
+/// # Panics
+///
+/// Panics if the chapter cannot be found after moving (should never happen in normal operation)
 #[debug_handler]
 pub async fn move_chapter(
     auth: auth::JWT,

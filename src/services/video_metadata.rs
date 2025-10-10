@@ -13,11 +13,18 @@ pub struct VideoMetadataService;
 
 impl VideoMetadataService {
     /// 创建新的视频元数据服务实例
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
     /// 从文件路径提取视频时长
+    ///
+    /// # Errors
+    ///
+    /// Will return error if video file cannot be processed or FFmpeg operations fail
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_precision_loss)]
     pub fn extract_from_file(&self, file_path: &str, mime_type: &str) -> Result<VideoMetadata> {
         // 只处理视频文件
         if !mime_type.starts_with("video/") {
@@ -30,11 +37,11 @@ impl VideoMetadataService {
         }
 
         // 初始化 FFmpeg（只需要初始化一次）
-        ffmpeg_next::init().map_err(|e| Error::Message(format!("FFmpeg 初始化失败: {}", e)))?;
+        ffmpeg_next::init().map_err(|e| Error::Message(format!("FFmpeg 初始化失败: {e}")))?;
 
         // 打开输入文件
         let input = ffmpeg_next::format::input(&file_path)
-            .map_err(|e| Error::Message(format!("无法打开视频文件: {}", e)))?;
+            .map_err(|e| Error::Message(format!("无法打开视频文件: {e}")))?;
 
         // 获取时长（微秒）
         let duration_micros = input.duration();
@@ -54,9 +61,9 @@ impl VideoMetadataService {
                     let duration_ts = stream.duration();
                     if duration_ts > 0 {
                         let time_base = stream.time_base();
-                        let duration_secs = (duration_ts as f64 * time_base.numerator() as f64
-                            / time_base.denominator() as f64)
-                            .round() as i32;
+                        let duration_secs = (duration_ts as f64 * f64::from(time_base.numerator())
+                            / f64::from(time_base.denominator()))
+                        .round() as i32;
                         Some(duration_secs)
                     } else {
                         None
@@ -68,14 +75,14 @@ impl VideoMetadataService {
     }
 
     /// 仅提取时长（轻量级方法）
+    #[must_use]
     pub fn extract_duration_only(&self, file_path: &str, mime_type: &str) -> Option<i32> {
-        match self.extract_from_file(file_path, mime_type) {
-            Ok(metadata) => metadata.duration,
-            Err(_) => None,
-        }
+        self.extract_from_file(file_path, mime_type)
+            .map_or(None, |metadata| metadata.duration)
     }
 
     /// 带容错的元数据提取
+    #[must_use]
     pub fn extract_with_fallback(&self, file_path: &str, mime_type: &str) -> VideoMetadata {
         self.extract_from_file(file_path, mime_type)
             .unwrap_or_else(|_| VideoMetadata::default())
@@ -89,9 +96,8 @@ impl Default for VideoMetadataService {
 }
 
 // 全局视频元数据服务实例
-lazy_static::lazy_static! {
-    pub static ref VIDEO_METADATA_SERVICE: VideoMetadataService = VideoMetadataService::new();
-}
+pub static VIDEO_METADATA_SERVICE: std::sync::LazyLock<VideoMetadataService> =
+    std::sync::LazyLock::new(VideoMetadataService::new);
 
 #[cfg(test)]
 mod tests {

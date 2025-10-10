@@ -44,7 +44,7 @@ impl AudioMetadataService {
 
         // 根据MIME类型设置格式提示
         let extension = file_path.extension().and_then(|s| s.to_str());
-        let ext_to_use = extension.unwrap_or_else(|| {
+        let ext_to_use = extension.unwrap_or({
             match mime_type {
                 "audio/mpeg" | "audio/mp3" => "mp3",
                 "audio/mp4" | "audio/x-m4a" => "m4a",

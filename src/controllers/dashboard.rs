@@ -67,12 +67,12 @@ pub async fn stats(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Res
         .all(&ctx.db)
         .await?;
 
-    let total_plays: i64 = medias_list.iter().map(|m| m.play_count as i64).sum();
+    let total_plays: i64 = medias_list.iter().map(|m| i64::from(m.play_count)).sum();
 
     let stats = DashboardStats {
-        total_books: total_books as i64,
-        total_medias: total_medias as i64,
-        total_chapters: total_chapters as i64,
+        total_books: i64::try_from(total_books).unwrap_or(i64::MAX),
+        total_medias: i64::try_from(total_medias).unwrap_or(i64::MAX),
+        total_chapters: i64::try_from(total_chapters).unwrap_or(i64::MAX),
         total_plays,
     };
 

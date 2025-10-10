@@ -1,3 +1,4 @@
+#[allow(clippy::duplicate_mod)]
 pub mod audio_metadata;
 pub mod qrcode;
 pub mod storage;

@@ -6,8 +6,10 @@ use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query};
 use axum::routing::method_routing::delete as axum_delete;
 use axum_extra::extract::Multipart;
 use loco_rs::prelude::*;
+use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use crate::models::_entities::books;
 use crate::models::_entities::chapters;
 use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
 use crate::models::users;
@@ -25,8 +27,9 @@ async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
     item.ok_or_else(|| Error::NotFound)
 }
 
-/// 获取当前用户的所有媒体，支持按 book_id 过滤
+/// 获取当前用户的所有媒体，支持按 `book_id` 过滤
 #[debug_handler]
+#[allow(clippy::implicit_hasher)]
 pub async fn list(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
@@ -87,7 +90,6 @@ pub async fn update(
     if let Some(chapter_id) = params.chapter_id {
         // 如果提供了 chapter_id，验证章节是否存在且属于同一个书籍
         if chapter_id > 0 {
-            use crate::models::_entities::chapters;
             let chapter = chapters::Entity::find_by_id(chapter_id)
                 .one(&ctx.db)
                 .await?
@@ -113,6 +115,7 @@ pub async fn update(
 
 /// 删除媒体
 #[debug_handler]
+#[allow(clippy::cognitive_complexity)]
 pub async fn delete(
     auth: auth::JWT,
     Path(id): Path<i32>,
@@ -151,6 +154,7 @@ pub async fn delete(
 
 /// 搜索媒体
 #[debug_handler]
+#[allow(clippy::implicit_hasher)]
 pub async fn search(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
@@ -158,7 +162,7 @@ pub async fn search(
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
-    let query = params.get("q").map(|q| q.as_str()).unwrap_or("");
+    let query = params.get("q").map_or("", |q| q.as_str());
 
     if query.is_empty() {
         return format::json(Vec::<MediaResponse>::new());
@@ -172,6 +176,7 @@ pub async fn search(
 
 /// 获取章节的媒体列表（非递归，仅当前章节）
 #[debug_handler]
+#[allow(clippy::implicit_hasher)]
 pub async fn list_by_chapter(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
@@ -213,7 +218,12 @@ pub async fn list_by_chapter(
 }
 
 /// 获取章节的媒体列表（递归，包含所有子章节）
+///
+/// # Panics
+///
+/// Panics if chapter cannot be found after validation (should never happen in normal operation)
 #[debug_handler]
+#[allow(clippy::implicit_hasher)]
 pub async fn list_by_chapter_recursive(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
@@ -256,7 +266,7 @@ pub async fn list_by_chapter_recursive(
     let related_chapters = chapters::Entity::find()
         .filter(
             chapters::Column::Path
-                .like(format!("{}%", chapter_path))
+                .like(format!("{chapter_path}%"))
                 .or(chapters::Column::Id.eq(chapter_id)),
         )
         .all(&ctx.db)
@@ -289,22 +299,24 @@ pub async fn list_child_chapters(
     let parent_chapter = chapters::Entity::find_by_id(chapter_id)
         .one(&ctx.db)
         .await?;
-    let book_id = if let Some(ref parent_chapter) = parent_chapter {
-        // 验证书籍是否属于当前用户
-        let book = crate::models::_entities::books::Entity::find_by_id(parent_chapter.book_id)
-            .filter(crate::models::_entities::books::Column::UserId.eq(user.id))
-            .one(&ctx.db)
-            .await?;
 
-        if book.is_none() {
-            return Err(Error::NotFound);
+    let book_id = match parent_chapter {
+        Some(ref parent_chapter) => {
+            // 验证书籍是否属于当前用户
+            let book = crate::models::_entities::books::Entity::find_by_id(parent_chapter.book_id)
+                .filter(crate::models::_entities::books::Column::UserId.eq(user.id))
+                .one(&ctx.db)
+                .await?;
+
+            if book.is_none() {
+                return Err(Error::NotFound);
+            }
+            parent_chapter.book_id
         }
-        parent_chapter.book_id
-    } else {
-        return Err(Error::NotFound);
+        None => return Err(Error::NotFound),
     };
 
-    let child_chapters = chapters::Entity::find()
+    let child_chapters: Vec<chapters::Model> = chapters::Entity::find()
         .filter(chapters::Column::ParentId.eq(chapter_id))
         .filter(chapters::Column::BookId.eq(book_id))
         .all(&ctx.db)
@@ -314,12 +326,21 @@ pub async fn list_child_chapters(
 }
 
 /// 上传媒体文件
+///
+/// # Panics
+///
+/// Panics if chapter cannot be found after validation (should never happen in normal operation)
 #[debug_handler]
+#[allow(clippy::cognitive_complexity)]
+#[allow(clippy::too_many_lines)]
 pub async fn upload(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
     mut multipart: Multipart,
 ) -> Result<Response> {
+    // 设置最大文件大小为 2GB
+    const MAX_FILE_SIZE: u64 = 2_147_483_648;
+
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
     let mut temp_file_path: Option<std::path::PathBuf> = None;
@@ -331,21 +352,18 @@ pub async fn upload(
     let mut book_id: Option<i32> = None;
     let mut chapter_id: Option<i32> = None;
 
-    // 设置最大文件大小为 2GB
-    const MAX_FILE_SIZE: u64 = 2_147_483_648;
-
     // 解析 multipart 数据
     while let Some(mut field) = multipart
         .next_field()
         .await
-        .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
+        .map_err(|e| Error::Message(format!("解析上传数据失败: {e}")))?
     {
         let name = field.name().unwrap_or("").to_string();
 
         match name.as_str() {
             "file" => {
-                let field_filename = field.file_name().map(|s| s.to_string());
-                let field_content_type = field.content_type().map(|s| s.to_string());
+                let field_filename = field.file_name().map(str::to_string);
+                let field_content_type = field.content_type().map(str::to_string);
 
                 // 验证必需信息
                 let fname = field_filename
@@ -360,14 +378,13 @@ pub async fn upload(
                 storage.validate_file_type(&fname, &ctype)?;
 
                 // 创建临时文件并流式写入
-                use tokio::io::AsyncWriteExt;
                 let temp_dir = std::env::temp_dir();
                 let temp_filename = format!("upload_{}.tmp", uuid::Uuid::new_v4());
                 let temp_path = temp_dir.join(&temp_filename);
 
                 let mut file = tokio::fs::File::create(&temp_path)
                     .await
-                    .map_err(|e| Error::Message(format!("创建临时文件失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("创建临时文件失败: {e}")))?;
 
                 let mut total_size: u64 = 0;
 
@@ -375,7 +392,7 @@ pub async fn upload(
                 while let Some(chunk) = field
                     .chunk()
                     .await
-                    .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
+                    .map_err(|e| Error::Message(format!("读取数据块失败: {e}")))?
                 {
                     total_size += chunk.len() as u64;
 
@@ -392,13 +409,13 @@ pub async fn upload(
                     // 写入块
                     file.write_all(&chunk)
                         .await
-                        .map_err(|e| Error::Message(format!("写入数据失败: {}", e)))?;
+                        .map_err(|e| Error::Message(format!("写入数据失败: {e}")))?;
                 }
 
                 // 确保所有数据都写入磁盘
                 file.flush()
                     .await
-                    .map_err(|e| Error::Message(format!("刷新缓冲区失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("刷新缓冲区失败: {e}")))?;
 
                 temp_file_path = Some(temp_path);
                 file_size = Some(total_size);
@@ -410,7 +427,7 @@ pub async fn upload(
                     field
                         .text()
                         .await
-                        .map_err(|e| Error::Message(format!("读取标题失败: {}", e)))?,
+                        .map_err(|e| Error::Message(format!("读取标题失败: {e}")))?,
                 );
             }
             "description" => {
@@ -418,14 +435,14 @@ pub async fn upload(
                     field
                         .text()
                         .await
-                        .map_err(|e| Error::Message(format!("读取描述失败: {}", e)))?,
+                        .map_err(|e| Error::Message(format!("读取描述失败: {e}")))?,
                 );
             }
             "book_id" => {
                 let book_id_str = field
                     .text()
                     .await
-                    .map_err(|e| Error::Message(format!("读取书籍ID失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("读取书籍ID失败: {e}")))?;
                 book_id = Some(
                     book_id_str
                         .parse::<i32>()
@@ -436,7 +453,7 @@ pub async fn upload(
                 let chapter_id_str = field
                     .text()
                     .await
-                    .map_err(|e| Error::Message(format!("读取章节ID失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("读取章节ID失败: {e}")))?;
                 chapter_id = Some(
                     chapter_id_str
                         .parse::<i32>()
@@ -458,7 +475,6 @@ pub async fn upload(
     let book_id = book_id.ok_or_else(|| Error::Message("缺少书籍ID".to_string()))?;
 
     // 验证用户是否拥有该书籍
-    use crate::models::_entities::books;
     let _book = books::Entity::find_by_id(book_id)
         .filter(books::Column::UserId.eq(user.id))
         .one(&ctx.db)
@@ -467,7 +483,6 @@ pub async fn upload(
 
     // 如果指定了章节ID，验证章节是否属于该书籍
     if let Some(chapter_id) = chapter_id {
-        use crate::models::_entities::chapters;
         let _chapter = chapters::Entity::find_by_id(chapter_id)
             .filter(chapters::Column::BookId.eq(book_id))
             .one(&ctx.db)
@@ -531,7 +546,7 @@ pub async fn upload(
         description: Set(description),
         file_type: Set(file_type),
         file_path: Set(uploaded_file.path.to_string_lossy().to_string()),
-        file_size: Set(Some(uploaded_file.size as i64)),
+        file_size: Set(Some(i64::try_from(uploaded_file.size).unwrap_or(i64::MAX))),
         duration: Set(duration),
         mime_type: Set(Some(content_type.clone())),
         access_token: Set(access_token.clone()),
@@ -568,7 +583,13 @@ pub async fn upload(
 }
 
 /// 替换媒体文件
+///
+/// # Panics
+///
+/// Panics if media cannot be found after validation (should never happen in normal operation)
 #[debug_handler]
+#[allow(clippy::cognitive_complexity)]
+#[allow(clippy::too_many_lines)]
 pub async fn replace_file(
     auth: auth::JWT,
     AxumPath(id): AxumPath<i32>,
@@ -581,6 +602,9 @@ pub async fn replace_file(
     let media = load_item(&ctx, id, user.id).await?;
     let book_id = media.book_id;
     let old_file_path = media.file_path.clone();
+    // 设置最大文件大小为 2GB
+    const MAX_FILE_SIZE: u64 = 2_147_483_648;
+
     let old_file_version = media.file_version;
 
     let mut temp_file_path: Option<std::path::PathBuf> = None;
@@ -588,20 +612,17 @@ pub async fn replace_file(
     let mut filename: Option<String> = None;
     let mut content_type: Option<String> = None;
 
-    // 设置最大文件大小为 2GB
-    const MAX_FILE_SIZE: u64 = 2_147_483_648;
-
     // 解析 multipart 数据
     while let Some(mut field) = multipart
         .next_field()
         .await
-        .map_err(|e| Error::Message(format!("解析上传数据失败: {}", e)))?
+        .map_err(|e| Error::Message(format!("解析上传数据失败: {e}")))?
     {
         let name = field.name().unwrap_or("").to_string();
 
         if name == "file" {
-            let field_filename = field.file_name().map(|s| s.to_string());
-            let field_content_type = field.content_type().map(|s| s.to_string());
+            let field_filename = field.file_name().map(str::to_string);
+            let field_content_type = field.content_type().map(str::to_string);
 
             // 验证必需信息
             let fname = field_filename
@@ -616,14 +637,13 @@ pub async fn replace_file(
             storage.validate_file_type(&fname, &ctype)?;
 
             // 创建临时文件并流式写入
-            use tokio::io::AsyncWriteExt;
             let temp_dir = std::env::temp_dir();
             let temp_filename = format!("upload_{}.tmp", uuid::Uuid::new_v4());
             let temp_path = temp_dir.join(&temp_filename);
 
             let mut file = tokio::fs::File::create(&temp_path)
                 .await
-                .map_err(|e| Error::Message(format!("创建临时文件失败: {}", e)))?;
+                .map_err(|e| Error::Message(format!("创建临时文件失败: {e}")))?;
 
             let mut total_size: u64 = 0;
 
@@ -631,7 +651,7 @@ pub async fn replace_file(
             while let Some(chunk) = field
                 .chunk()
                 .await
-                .map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?
+                .map_err(|e| Error::Message(format!("读取数据块失败: {e}")))?
             {
                 total_size += chunk.len() as u64;
 
@@ -648,13 +668,13 @@ pub async fn replace_file(
                 // 写入块
                 file.write_all(&chunk)
                     .await
-                    .map_err(|e| Error::Message(format!("写入数据失败: {}", e)))?;
+                    .map_err(|e| Error::Message(format!("写入数据失败: {e}")))?;
             }
 
             // 确保所有数据都写入磁盘
             file.flush()
                 .await
-                .map_err(|e| Error::Message(format!("刷新缓冲区失败: {}", e)))?;
+                .map_err(|e| Error::Message(format!("刷新缓冲区失败: {e}")))?;
 
             temp_file_path = Some(temp_path);
             file_size = Some(total_size);
@@ -763,7 +783,7 @@ async fn generate_qrcode_for_media(
 
     active_model.update(&ctx.db).await.map_err(|e| {
         tracing::error!("更新媒体 {} 的二维码路径失败: {}", media_id, e);
-        Error::Message(format!("更新二维码路径失败: {}", e))
+        Error::Message(format!("更新二维码路径失败: {e}"))
     })?;
 
     tracing::info!("媒体 {} 的二维码生成完成: {}", media_id, qrcode_path);
@@ -857,9 +877,8 @@ pub async fn regenerate_qrcode(
 
     format::json(serde_json::json!({
         "qrcode_path": qrcode_relative_path,
-        "qrcode_url": format!("{}{}",
-            ctx.config.server.full_url().trim_end_matches('/'),
-            qrcode_relative_path
+        "qrcode_url": format!("{}{qrcode_relative_path}",
+            ctx.config.server.full_url().trim_end_matches('/')
         )
     }))
 }
@@ -885,7 +904,7 @@ pub async fn stream_media(
 
     // 检查文件是否存在
     let file_path = &media.file_path;
-    if !tokio::fs::metadata(file_path).await.is_ok() {
+    if tokio::fs::metadata(file_path).await.is_err() {
         return Err(Error::NotFound);
     }
 
@@ -1008,7 +1027,7 @@ pub async fn stream_media(
             .map_err(|_| Error::InternalServerError)?
     } else {
         // 范围请求响应
-        let content_range = format!("bytes {}-{}/{}", final_start, final_end, file_size);
+        let content_range = format!("bytes {final_start}-{final_end}/{file_size}");
 
         Response::builder()
             .status(StatusCode::PARTIAL_CONTENT)

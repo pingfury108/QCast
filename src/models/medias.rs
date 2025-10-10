@@ -115,6 +115,7 @@ impl Model {
 // implement your write-oriented logic here
 impl ActiveModel {
     /// 创建新的媒体记录
+    #[allow(clippy::too_many_arguments)]
     pub fn create_new(
         title: String,
         description: Option<String>,
@@ -151,6 +152,7 @@ impl ActiveModel {
     }
 
     /// 替换媒体文件（保持 access_token 不变）
+    #[allow(clippy::too_many_arguments)]
     pub async fn replace_file(
         db: &DatabaseConnection,
         media_id: i32,

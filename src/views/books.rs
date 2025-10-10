@@ -48,11 +48,7 @@ impl From<BookTree> for BookTreeResponse {
     fn from(tree: BookTree) -> Self {
         Self {
             book: BookResponse::from(tree.book),
-            children: tree
-                .children
-                .into_iter()
-                .map(BookTreeResponse::from)
-                .collect(),
+            children: tree.children.into_iter().map(Self::from).collect(),
         }
     }
 }

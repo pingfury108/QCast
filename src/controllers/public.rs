@@ -34,7 +34,7 @@ pub async fn get_media(
 
     // 检查文件是否存在
     let file_path = &media.file_path;
-    if !tokio::fs::metadata(file_path).await.is_ok() {
+    if tokio::fs::metadata(file_path).await.is_err() {
         return Err(Error::NotFound);
     }
 

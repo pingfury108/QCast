@@ -62,7 +62,7 @@ impl QRCodeService {
             QrCode::new(data).map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
 
         // 渲染为 SVG
-        let svg_string = code.render::<svg::Color>().build();
+        let svg_string = code.render::<svg::Color<'_>>().build();
         Ok(svg_string)
     }
 
@@ -75,7 +75,7 @@ impl QRCodeService {
             QrCode::new(data).map_err(|e| Error::Message(format!("生成二维码失败: {}", e)))?;
 
         // 渲染为 SVG
-        let svg_string = code.render::<svg::Color>().build();
+        let svg_string = code.render::<svg::Color<'_>>().build();
         let qrcode_path = self.get_qrcode_path().join(format!("{}.svg", filename));
 
         // 保存到文件
@@ -99,7 +99,7 @@ impl QRCodeService {
     }
 
     /// 检查二维码文件是否存在
-    pub async fn qrcode_exists(&self, filename: &str, extension: &str) -> bool {
+    pub fn qrcode_exists(&self, filename: &str, extension: &str) -> bool {
         let qrcode_path = self
             .get_qrcode_path()
             .join(format!("{}.{}", filename, extension));
@@ -136,12 +136,10 @@ impl QRCodeService {
 }
 
 // 全局二维码服务实例
-lazy_static::lazy_static! {
-    pub static ref QRCODE_SERVICE: QRCodeService = {
-        let storage_path = std::env::var("STORAGE_PATH").unwrap_or_else(|_| "uploads".to_string());
-        QRCodeService::new(storage_path)
-    };
-}
+pub static QRCODE_SERVICE: std::sync::LazyLock<QRCodeService> = std::sync::LazyLock::new(|| {
+    let storage_path = std::env::var("STORAGE_PATH").unwrap_or_else(|_| "uploads".to_string());
+    QRCodeService::new(storage_path)
+});
 
 #[cfg(test)]
 mod tests {
@@ -223,7 +221,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(path1, path2);
-        assert!(service.qrcode_exists(&media_id.to_string(), "svg").await);
+        assert!(service.qrcode_exists(&media_id.to_string(), "svg"));
     }
 
     #[tokio::test]
@@ -241,12 +239,12 @@ mod tests {
             .unwrap();
 
         // 确认文件存在
-        assert!(service.qrcode_exists(&media_id.to_string(), "svg").await);
+        assert!(service.qrcode_exists(&media_id.to_string(), "svg"));
 
         // 删除二维码
         service.delete_media_qrcode(media_id).await.unwrap();
 
         // 确认文件不存在
-        assert!(!service.qrcode_exists(&media_id.to_string(), "svg").await);
+        assert!(!service.qrcode_exists(&media_id.to_string(), "svg"));
     }
 }

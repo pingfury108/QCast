@@ -263,7 +263,7 @@ impl StorageService {
     }
 
     /// 检查文件是否存在
-    pub async fn file_exists(&self, file_path: &Path) -> bool {
+    pub fn file_exists(&self, file_path: &Path) -> bool {
         file_path.exists()
     }
 
@@ -303,14 +303,13 @@ impl StorageService {
 
         let mut file = tokio::fs::File::create(&temp_path)
             .await
-            .map_err(|e| Error::Message(format!("创建临时文件失败: {}", e)))?;
+            .map_err(|e| Error::Message(format!("创建临时文件失败: {e}")))?;
 
         let mut total_size: u64 = 0;
 
         // 逐块读取并写入
         while let Some(chunk_result) = stream.next().await {
-            let chunk =
-                chunk_result.map_err(|e| Error::Message(format!("读取数据块失败: {}", e)))?;
+            let chunk = chunk_result.map_err(|e| Error::Message(format!("读取数据块失败: {e}")))?;
 
             total_size += chunk.len() as u64;
 
@@ -327,18 +326,22 @@ impl StorageService {
             // 写入块
             file.write_all(&chunk)
                 .await
-                .map_err(|e| Error::Message(format!("写入数据失败: {}", e)))?;
+                .map_err(|e| Error::Message(format!("写入数据失败: {e}")))?;
         }
 
         // 确保所有数据都写入磁盘
         file.flush()
             .await
-            .map_err(|e| Error::Message(format!("刷新缓冲区失败: {}", e)))?;
+            .map_err(|e| Error::Message(format!("刷新缓冲区失败: {e}")))?;
 
         Ok((temp_path, total_size))
     }
 
     /// 从临时文件移动文件到永久存储位置（避免内存加载）
+    ///
+    /// # Errors
+    ///
+    /// Will return error if file validation fails or file operations fail
     pub async fn move_temp_file(
         &self,
         user_id: i32,
@@ -367,7 +370,7 @@ impl StorageService {
         // 移动文件（这是原子操作，比复制+删除更高效）
         fs::rename(temp_file_path, &final_path)
             .await
-            .map_err(|e| Error::Message(format!("移动文件失败: {}", e)))?;
+            .map_err(|e| Error::Message(format!("移动文件失败: {e}")))?;
 
         Ok(UploadedFile {
             filename: unique_filename,
@@ -378,27 +381,26 @@ impl StorageService {
     }
 
     /// 确定文件类型（音频或视频）
+    ///
+    /// # Errors
+    ///
+    /// Will return error if content type is not supported
     pub fn determine_file_type(&self, content_type: &str) -> Result<String> {
         if content_type.starts_with("audio/") {
             Ok("audio".to_string())
         } else if content_type.starts_with("video/") {
             Ok("video".to_string())
         } else {
-            Err(Error::Message(format!(
-                "不支持的文件类型: {}",
-                content_type
-            )))
+            Err(Error::Message(format!("不支持的文件类型: {content_type}")))
         }
     }
 }
 
 // 全局存储服务实例
-lazy_static::lazy_static! {
-    pub static ref STORAGE_SERVICE: StorageService = {
-        let storage_path = std::env::var("STORAGE_PATH").unwrap_or_else(|_| "uploads".to_string());
-        StorageService::new(storage_path)
-    };
-}
+pub static STORAGE_SERVICE: std::sync::LazyLock<StorageService> = std::sync::LazyLock::new(|| {
+    let storage_path = std::env::var("STORAGE_PATH").unwrap_or_else(|_| "uploads".to_string());
+    StorageService::new(storage_path)
+});
 
 #[cfg(test)]
 mod tests {

@@ -71,8 +71,8 @@ pub async fn list(auth: auth::JWT, State(ctx): State<AppContext>) -> Result<Resp
             .await?;
 
         let mut response = BookResponse::from(book);
-        response.media_count = Some(media_count as i64);
-        response.chapter_count = Some(chapter_count as i64);
+        response.media_count = Some(i64::try_from(media_count).unwrap_or(i64::MAX));
+        response.chapter_count = Some(i64::try_from(chapter_count).unwrap_or(i64::MAX));
         responses.push(response);
     }
 
@@ -131,8 +131,8 @@ pub async fn show(
         .await?;
 
     let mut response = BookResponse::from(item);
-    response.media_count = Some(media_count as i64);
-    response.chapter_count = Some(chapter_count as i64);
+    response.media_count = Some(i64::try_from(media_count).unwrap_or(i64::MAX));
+    response.chapter_count = Some(i64::try_from(chapter_count).unwrap_or(i64::MAX));
 
     format::json(response)
 }
@@ -184,8 +184,8 @@ pub async fn update(
         .await?;
 
     let mut response = BookResponse::from(item);
-    response.media_count = Some(media_count as i64);
-    response.chapter_count = Some(chapter_count as i64);
+    response.media_count = Some(i64::try_from(media_count).unwrap_or(i64::MAX));
+    response.chapter_count = Some(i64::try_from(chapter_count).unwrap_or(i64::MAX));
 
     format::json(response)
 }
@@ -205,7 +205,7 @@ pub async fn delete(
 }
 
 /// 搜索书籍
-#[debug_handler]
+#[allow(clippy::implicit_hasher)]
 pub async fn search(
     auth: auth::JWT,
     State(ctx): State<AppContext>,
@@ -213,7 +213,7 @@ pub async fn search(
 ) -> Result<Response> {
     let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
 
-    let query = params.get("q").map(|q| q.as_str()).unwrap_or("");
+    let query = params.get("q").map_or("", |q| q.as_str());
 
     if query.is_empty() {
         return format::json(Vec::<BookResponse>::new());
@@ -236,8 +236,8 @@ pub async fn search(
             .await?;
 
         let mut response = BookResponse::from(book);
-        response.media_count = Some(media_count as i64);
-        response.chapter_count = Some(chapter_count as i64);
+        response.media_count = Some(i64::try_from(media_count).unwrap_or(i64::MAX));
+        response.chapter_count = Some(i64::try_from(chapter_count).unwrap_or(i64::MAX));
         responses.push(response);
     }
 
@@ -289,8 +289,8 @@ pub async fn reorder(
         .await?;
 
     let mut response = BookResponse::from(item);
-    response.media_count = Some(media_count as i64);
-    response.chapter_count = Some(chapter_count as i64);
+    response.media_count = Some(i64::try_from(media_count).unwrap_or(i64::MAX));
+    response.chapter_count = Some(i64::try_from(chapter_count).unwrap_or(i64::MAX));
 
     format::json(response)
 }
