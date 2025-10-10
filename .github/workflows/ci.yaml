@@ -41,6 +41,10 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
+      - name: Install FFmpeg and system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libavutil-dev libavcodec-dev libavformat-dev libavfilter-dev libavdevice-dev libswscale-dev libswresample-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -58,7 +62,7 @@ jobs:
 
     permissions:
       contents: read
-    
+
     services:
       redis:
         image: redis
@@ -86,6 +90,10 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
+      - name: Install FFmpeg and system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libavutil-dev libavcodec-dev libavformat-dev libavfilter-dev libavdevice-dev libswscale-dev libswresample-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
