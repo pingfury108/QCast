@@ -499,3 +499,40 @@ async fn cannot_resend_email_if_already_verified() {
     })
     .await;
 }
+
+#[tokio::test]
+#[serial]
+async fn cannot_register_duplicate_email() {
+    configure_insta!();
+
+    request::<App, _, _>(|request, _ctx| async move {
+        let email = "duplicate@loco.com";
+        let payload = serde_json::json!({
+            "name": "loco",
+            "email": email,
+            "password": "12341234"
+        });
+
+        // 第一次注册应该成功
+        let first_response = request.post("/api/auth/register").json(&payload).await;
+        assert_eq!(
+            first_response.status_code(),
+            200,
+            "First register request should succeed"
+        );
+
+        // 第二次注册应该返回 400 错误
+        let second_response = request.post("/api/auth/register").json(&payload).await;
+        assert_eq!(
+            second_response.status_code(),
+            400,
+            "Duplicate register request should return 400"
+        );
+
+        second_response.assert_json(&serde_json::json!({
+            "error": "Bad Request",
+            "description": "该邮箱已被注册"
+        }));
+    })
+    .await;
+}

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::{offset::Local, Duration};
 use loco_rs::{auth::jwt, hash, prelude::*};
+use sea_orm::{Condition, PaginatorTrait, QueryOrder};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use uuid::Uuid;
@@ -365,5 +366,114 @@ impl ActiveModel {
         self.magic_link_token = ActiveValue::set(None);
         self.magic_link_expiration = ActiveValue::set(None);
         self.update(db).await.map_err(ModelError::from)
+    }
+}
+
+// ========== Model 的管理员相关功能 ==========
+impl Model {
+    /// 检查用户是否是管理员（拥有后台访问权限）
+    pub fn is_admin(&self) -> bool {
+        self.is_staff || self.is_superuser
+    }
+
+    /// 检查用户是否是超级管理员
+    pub fn is_super_admin(&self) -> bool {
+        self.is_superuser
+    }
+
+    /// 列出所有用户（分页）- 仅管理员可用
+    ///
+    /// # Errors
+    ///
+    /// When database query fails
+    pub async fn list_all(
+        db: &DatabaseConnection,
+        page: u64,
+        per_page: u64,
+    ) -> ModelResult<(Vec<Self>, u64)> {
+        let paginator = users::Entity::find()
+            .order_by_desc(users::Column::CreatedAt)
+            .paginate(db, per_page);
+
+        let total_pages = paginator.num_pages().await?;
+        let users = paginator.fetch_page(page.saturating_sub(1)).await?;
+
+        Ok((users, total_pages))
+    }
+
+    /// 搜索用户（支持邮箱和用户名）
+    ///
+    /// # Errors
+    ///
+    /// When database query fails
+    pub async fn search(
+        db: &DatabaseConnection,
+        keyword: &str,
+        page: u64,
+        per_page: u64,
+    ) -> ModelResult<(Vec<Self>, u64)> {
+        let keyword_pattern = format!("%{keyword}%");
+
+        let paginator = users::Entity::find()
+            .filter(
+                Condition::any()
+                    .add(users::Column::Email.like(&keyword_pattern))
+                    .add(users::Column::Name.like(&keyword_pattern)),
+            )
+            .order_by_desc(users::Column::CreatedAt)
+            .paginate(db, per_page);
+
+        let total_pages = paginator.num_pages().await?;
+        let users = paginator.fetch_page(page.saturating_sub(1)).await?;
+
+        Ok((users, total_pages))
+    }
+
+    /// 更新用户角色 - 仅超级管理员可用
+    ///
+    /// # Errors
+    ///
+    /// When user not found or database update fails
+    pub async fn update_admin_status(
+        db: &DatabaseConnection,
+        user_id: i32,
+        is_staff: bool,
+        is_superuser: bool,
+    ) -> ModelResult<Self> {
+        let user = users::Entity::find_by_id(user_id)
+            .one(db)
+            .await?
+            .ok_or_else(|| ModelError::EntityNotFound)?;
+
+        let mut active_user: users::ActiveModel = user.into();
+        active_user.is_staff = ActiveValue::Set(is_staff);
+        active_user.is_superuser = ActiveValue::Set(is_superuser);
+
+        active_user.update(db).await.map_err(ModelError::from)
+    }
+
+    /// 统计总用户数
+    ///
+    /// # Errors
+    ///
+    /// When database query fails
+    pub async fn count_all(db: &DatabaseConnection) -> ModelResult<u64> {
+        Ok(users::Entity::find().count(db).await?)
+    }
+
+    /// 统计管理员数量
+    ///
+    /// # Errors
+    ///
+    /// When database query fails
+    pub async fn count_admins(db: &DatabaseConnection) -> ModelResult<u64> {
+        Ok(users::Entity::find()
+            .filter(
+                Condition::any()
+                    .add(users::Column::IsStaff.eq(true))
+                    .add(users::Column::IsSuperuser.eq(true)),
+            )
+            .count(db)
+            .await?)
     }
 }

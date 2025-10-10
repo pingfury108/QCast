@@ -18,7 +18,6 @@ pub struct Model {
     pub file_size: Option<i64>,
     pub duration: Option<i32>,
     pub mime_type: Option<String>,
-    #[sea_orm(unique)]
     pub access_token: String,
     pub access_url: Option<String>,
     pub qr_code_path: Option<String>,
@@ -26,54 +25,10 @@ pub struct Model {
     pub original_filename: Option<String>,
     pub play_count: i32,
     pub is_public: bool,
-    #[sea_orm(nullable)]
     pub chapter_id: Option<i32>,
     pub book_id: i32,
     pub user_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::books::Entity",
-        from = "Column::BookId",
-        to = "super::books::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
-    )]
-    Books,
-    #[sea_orm(
-        belongs_to = "super::chapters::Entity",
-        from = "Column::ChapterId",
-        to = "super::chapters::Column::Id",
-        on_update = "Cascade",
-        on_delete = "SetNull"
-    )]
-    Chapters,
-    #[sea_orm(
-        belongs_to = "super::users::Entity",
-        from = "Column::UserId",
-        to = "super::users::Column::Id",
-        on_update = "Cascade",
-        on_delete = "Cascade"
-    )]
-    Users,
-}
-
-impl Related<super::books::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Books.def()
-    }
-}
-
-impl Related<super::chapters::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Chapters.def()
-    }
-}
-
-impl Related<super::users::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Users.def()
-    }
-}
+pub enum Relation {}

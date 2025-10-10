@@ -838,7 +838,7 @@ async fn can_list_child_chapters() {
         )
         .await;
 
-        let child_chapter2 = create_test_chapter(
+        let _child_chapter2 = create_test_chapter(
             &ctx,
             book.id,
             Some(parent_chapter.id),
@@ -848,7 +848,7 @@ async fn can_list_child_chapters() {
         .await;
 
         // 创建孙子章节
-        let grandchild_chapter = create_test_chapter(
+        let _grandchild_chapter = create_test_chapter(
             &ctx,
             book.id,
             Some(child_chapter1.id),

@@ -53,6 +53,9 @@ impl Hooks for App {
             .add_route(controllers::public::routes())
             .add_route(controllers::auth::routes())
             .add_route(controllers::dashboard::routes())
+            // 后台管理路由
+            .add_route(controllers::admin::users::routes())
+            .add_route(controllers::admin::groups::routes())
     }
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
         // 暂无 worker
@@ -61,6 +64,7 @@ impl Hooks for App {
 
     #[allow(unused_variables)]
     fn register_tasks(tasks: &mut Tasks) {
+        tasks.register(tasks::create_superadmin::CreateSuperadmin);
         // tasks-inject (do not remove)
     }
     async fn truncate(ctx: &AppContext) -> Result<()> {

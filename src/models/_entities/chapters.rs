@@ -31,34 +31,10 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Books,
-    #[sea_orm(
-        belongs_to = "super::chapters::Entity",
-        from = "Column::ParentId",
-        to = "super::chapters::Column::Id",
-        on_update = "Cascade",
-        on_delete = "SetNull"
-    )]
-    Parent,
-    #[sea_orm(has_many = "super::chapters::Entity")]
-    Children,
-    #[sea_orm(has_many = "super::medias::Entity")]
-    Medias,
 }
 
 impl Related<super::books::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Books.def()
-    }
-}
-
-impl Related<super::medias::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Medias.def()
-    }
-}
-
-impl Related<Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Children.def()
     }
 }

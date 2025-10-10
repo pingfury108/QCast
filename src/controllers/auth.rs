@@ -53,6 +53,16 @@ async fn register(
     let user = match res {
         Ok(user) => user,
         Err(err) => {
+            // 邮箱已存在时返回明确错误
+            if matches!(err, loco_rs::model::ModelError::EntityAlreadyExists) {
+                tracing::info!(
+                    user_email = &params.email,
+                    "attempt to register with existing email",
+                );
+                return bad_request("该邮箱已被注册");
+            }
+
+            // 其他错误返回空响应（安全考虑）
             tracing::info!(
                 message = err.to_string(),
                 user_email = &params.email,

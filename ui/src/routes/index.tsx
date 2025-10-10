@@ -11,6 +11,8 @@ import DashboardPage from '../pages/DashboardPage';
 import DashboardBooks from '../pages/DashboardBooks';
 import BookDetailPage from '../pages/BookDetailPage';
 import PublicMediaPage from '../pages/PublicMediaPage';
+import ProfilePage from '../pages/ProfilePage';
+import SettingsPage from '../pages/SettingsPage';
 
 // 创建路由配置
 export const router = createBrowserRouter([
@@ -62,6 +64,26 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <DashboardLayout>
               <BookDetailPage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <ProtectedRoute>
+            <DashboardLayout>
+              <ProfilePage />
+            </DashboardLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <ProtectedRoute>
+            <DashboardLayout>
+              <SettingsPage />
             </DashboardLayout>
           </ProtectedRoute>
         ),

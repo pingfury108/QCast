@@ -3,4 +3,6 @@
 pub use super::books::Entity as Books;
 pub use super::chapters::Entity as Chapters;
 pub use super::medias::Entity as Medias;
+pub use super::user_group_members::Entity as UserGroupMembers;
+pub use super::user_groups::Entity as UserGroups;
 pub use super::users::Entity as Users;
