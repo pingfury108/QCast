@@ -126,6 +126,57 @@ impl Model {
             .await
     }
 
+    /// 搜索章节（包含所有父章节）
+    pub async fn search_with_parents(
+        db: &DatabaseConnection,
+        book_id: i32,
+        query: &str,
+    ) -> Result<Vec<Model>, DbErr> {
+        // 先获取匹配的章节
+        let matched_chapters = Self::search(db, book_id, query).await?;
+
+        if matched_chapters.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // 收集所有需要包含的章节ID
+        let mut chapter_ids = std::collections::HashSet::new();
+        for chapter in &matched_chapters {
+            chapter_ids.insert(chapter.id);
+
+            // 递归查找所有父章节
+            let mut current_parent_id = chapter.parent_id;
+            while let Some(parent_id) = current_parent_id {
+                if chapter_ids.contains(&parent_id) {
+                    break; // 避免循环
+                }
+                chapter_ids.insert(parent_id);
+
+                // 查找父章节
+                if let Some(parent) = Entity::find_by_id(parent_id)
+                    .filter(Column::BookId.eq(book_id))
+                    .one(db)
+                    .await?
+                {
+                    current_parent_id = parent.parent_id;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 获取所有章节（包括匹配的和父章节）
+        let all_chapters = Entity::find()
+            .filter(Column::BookId.eq(book_id))
+            .filter(Column::Id.is_in(chapter_ids.into_iter().collect::<Vec<_>>()))
+            .order_by_asc(Column::SortOrder)
+            .order_by_asc(Column::CreatedAt)
+            .all(db)
+            .await?;
+
+        Ok(all_chapters)
+    }
+
     /// 获取下一个排序号
     pub async fn get_next_sort_order(db: &DatabaseConnection, book_id: i32) -> Result<i32, DbErr> {
         let max_order = Entity::find()

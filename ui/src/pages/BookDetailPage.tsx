@@ -9,7 +9,8 @@ import {
   useReorderChapter,
   useChapterTree,
   useCreateChildChapter,
-  useMoveChapter
+  useMoveChapter,
+  useSearchChapters
 } from '../hooks/useChapters'
 import { useBookMedias, useToggleMediaPublish, useDeleteMedia, useUploadMedia } from '../hooks/useMedias'
 import type { Chapter } from '../services/chapters'
@@ -18,7 +19,7 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download, PlayCircle } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download, PlayCircle, Search } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { MediaPlayer } from '../components/MediaPlayer'
@@ -98,10 +99,13 @@ export default function BookDetailPage() {
   const [replacingMedia, setReplacingMedia] = useState<Media | null>(null)
   const [replaceMediaDialogOpen, setReplaceMediaDialogOpen] = useState(false)
   const [playingMediaId, setPlayingMediaId] = useState<number | null>(null)
+  const [mediaSearchQuery, setMediaSearchQuery] = useState('')
+  const [chapterSearchQuery, setChapterSearchQuery] = useState('')
 
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: chapters = [] } = useChapters(bookId)
   const { data: chapterTree = [], isLoading: chapterTreeLoading } = useChapterTree(bookId)
+  const { data: chapterSearchResults, isLoading: chapterSearchLoading } = useSearchChapters(bookId, chapterSearchQuery)
   const { data: medias = [], isLoading: mediasLoading } = useBookMedias(bookId)
   const updateBookMutation = useUpdateBook()
   const createChapterMutation = useCreateChapter()
@@ -613,6 +617,54 @@ export default function BookDetailPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  // 过滤媒体列表
+  const filteredMedias = useMemo(() => {
+    if (!mediaSearchQuery) return medias
+
+    const query = mediaSearchQuery.toLowerCase()
+    return medias.filter(media =>
+      media.title.toLowerCase().includes(query) ||
+      media.description?.toLowerCase().includes(query) ||
+      media.original_filename?.toLowerCase().includes(query)
+    )
+  }, [medias, mediaSearchQuery])
+
+  // 处理章节显示数据
+  const displayChapterTree = useMemo(() => {
+    if (chapterSearchQuery.length > 0 && chapterSearchResults) {
+      // 搜索模式：将扁平的 Chapter[] 转换为树形结构
+      const buildChapterTree = (chapters: Chapter[]): ChapterTree[] => {
+        if (!chapters) return []
+
+        // 创建 ID 到章节的映射
+        const chapterMap = new Map<number, ChapterTree>()
+        chapters.forEach(chapter => {
+          chapterMap.set(chapter.id, { ...chapter, children: [] })
+        })
+
+        // 构建树形结构
+        const rootChapters: ChapterTree[] = []
+        chapters.forEach(chapter => {
+          const treeNode = chapterMap.get(chapter.id)!
+          if (chapter.parent_id && chapterMap.has(chapter.parent_id)) {
+            // 添加到父章节的children中
+            chapterMap.get(chapter.parent_id)!.children.push(treeNode)
+          } else {
+            // 顶级章节
+            rootChapters.push(treeNode)
+          }
+        })
+
+        return rootChapters
+      }
+
+      return buildChapterTree(chapterSearchResults)
+    }
+    return chapterTree
+  }, [chapterSearchQuery, chapterSearchResults, chapterTree])
+
+  const isChapterLoading = chapterSearchQuery.length > 0 ? chapterSearchLoading : chapterTreeLoading
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -738,17 +790,37 @@ export default function BookDetailPage() {
               </div>
             </div>
 
+            {/* 搜索框 */}
+            <div className="relative max-w-sm">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索媒体..."
+                value={mediaSearchQuery}
+                onChange={(e) => setMediaSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+
             {mediasLoading ? (
               <div className="text-center py-8">加载媒体中...</div>
-            ) : medias.length === 0 ? (
+            ) : filteredMedias.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Music className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>暂无媒体文件</p>
-                <p className="text-sm">点击上方按钮上传第一个媒体文件</p>
+                {mediaSearchQuery ? (
+                  <>
+                    <p>未找到匹配的媒体</p>
+                    <p className="text-sm">尝试使用其他关键词搜索</p>
+                  </>
+                ) : (
+                  <>
+                    <p>暂无媒体文件</p>
+                    <p className="text-sm">点击上方按钮上传第一个媒体文件</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid gap-4">
-                {medias.map((media) => (
+                {filteredMedias.map((media) => (
                   <div key={media.id} className="border rounded-lg overflow-hidden">
                     {/* 媒体信息行 */}
                     <div className="flex items-center justify-between p-4">
@@ -851,11 +923,37 @@ export default function BookDetailPage() {
               </Button>
             </div>
 
-            {chapterTreeLoading ? (
+            {/* 搜索框 */}
+            <div className="relative max-w-sm">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索章节..."
+                value={chapterSearchQuery}
+                onChange={(e) => setChapterSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+
+            {isChapterLoading ? (
               <div className="text-center py-8">加载章节中...</div>
+            ) : displayChapterTree.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                {chapterSearchQuery ? (
+                  <>
+                    <p>未找到匹配的章节</p>
+                    <p className="text-sm">尝试使用其他关键词搜索</p>
+                  </>
+                ) : (
+                  <>
+                    <p>暂无章节</p>
+                    <p className="text-sm">点击上方按钮创建第一个章节</p>
+                  </>
+                )}
+              </div>
             ) : (
               <ChapterTreeComponent
-                chapters={chapterTree}
+                chapters={displayChapterTree}
                 bookId={book.id}
                 onEdit={(chapter) => {
                   // 转换为Chapter类型用于编辑

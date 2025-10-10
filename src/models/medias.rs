@@ -91,6 +91,37 @@ impl Model {
             .await
     }
 
+    /// 搜索指定书籍的媒体文件
+    pub async fn search_by_book(
+        db: &DatabaseConnection,
+        user_id: i32,
+        book_id: i32,
+        query: &str,
+    ) -> Result<Vec<Model>, DbErr> {
+        // 转换为小写进行大小写不敏感搜索（跨数据库兼容）
+        let query_lower = query.to_lowercase();
+        let search_pattern = format!("%{query_lower}%");
+
+        Entity::find()
+            .filter(Column::UserId.eq(user_id))
+            .filter(Column::BookId.eq(book_id))
+            .filter(
+                Condition::any()
+                    .add(Expr::expr(Func::lower(Expr::col(Column::Title))).like(&search_pattern))
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(Column::Description)))
+                            .like(&search_pattern),
+                    )
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(Column::OriginalFilename)))
+                            .like(&search_pattern),
+                    ),
+            )
+            .order_by_desc(Column::CreatedAt)
+            .all(db)
+            .await
+    }
+
     /// 根据访问令牌查找媒体文件
     pub async fn find_by_access_token(
         db: &DatabaseConnection,

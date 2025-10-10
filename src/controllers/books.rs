@@ -219,7 +219,8 @@ pub async fn search(
         return format::json(Vec::<BookResponse>::new());
     }
 
-    let books = Model::search(&ctx.db, user.id, query).await?;
+    // 使用 search_with_parents 包含所有父书籍
+    let books = Model::search_with_parents(&ctx.db, user.id, query).await?;
 
     let mut responses = Vec::new();
     for book in books {

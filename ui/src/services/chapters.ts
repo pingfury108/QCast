@@ -68,6 +68,14 @@ export const chaptersService = {
     return response.data
   },
 
+  // 搜索章节
+  async searchChapters(bookId: number, query: string): Promise<Chapter[]> {
+    const response = await api.get(`/books/${bookId}/chapters/search`, {
+      params: { q: query }
+    })
+    return response.data
+  },
+
   // 获取章节详情
   async getChapter(bookId: number, id: number): Promise<Chapter> {
     const response = await api.get(`/books/${bookId}/chapters/${id}`)

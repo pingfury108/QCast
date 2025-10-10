@@ -2,6 +2,7 @@
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
 use axum::debug_handler;
+use axum::extract::Query;
 use axum::routing::method_routing::delete as axum_delete;
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -88,6 +89,37 @@ pub async fn list(
         .into_iter()
         .map(|(chapter, media_count)| ChapterResponse::from_with_media_count(chapter, media_count))
         .collect();
+
+    format::json(responses)
+}
+
+/// 搜索章节
+#[debug_handler]
+#[allow(clippy::implicit_hasher)]
+pub async fn search(
+    auth: auth::JWT,
+    Path(book_id): Path<i32>,
+    State(ctx): State<AppContext>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Response> {
+    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
+
+    // 验证用户是否有权限访问该书籍
+    let _book = books::Entity::find_by_id(book_id)
+        .filter(books::Column::UserId.eq(user.id))
+        .one(&ctx.db)
+        .await?
+        .ok_or_else(|| Error::NotFound)?;
+
+    let query = params.get("q").map_or("", |q| q.as_str());
+
+    if query.is_empty() {
+        return format::json(Vec::<ChapterResponse>::new());
+    }
+
+    // 使用 search_with_parents 包含所有父章节
+    let chapters = Model::search_with_parents(&ctx.db, book_id, query).await?;
+    let responses: Vec<ChapterResponse> = chapters.into_iter().map(ChapterResponse::from).collect();
 
     format::json(responses)
 }
@@ -471,6 +503,7 @@ pub fn routes() -> Routes {
     Routes::new()
         .prefix("/api/books")
         .add("/{book_id}/chapters", get(list))
+        .add("/{book_id}/chapters/search", get(search))
         .add("/{book_id}/chapters", post(create))
         .add("/{book_id}/chapters/batch-reorder", post(batch_reorder))
         .add("/{book_id}/chapters/tree", get(tree))

@@ -1,0 +1,54 @@
+---
+source: tests/models/chapters.rs
+expression: search_results
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "根章节",
+        description: None,
+        sort_order: Some(
+            1,
+        ),
+        book_id: ID
+        parent_id: None,
+        level: None,
+        path: None,
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "子章节",
+        description: None,
+        sort_order: Some(
+            1,
+        ),
+        book_id: ID
+        parent_id: Some(
+            1,
+        ),
+        level: None,
+        path: None,
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "孙子章节目标",
+        description: Some(
+            "这是目标章节",
+        ),
+        sort_order: Some(
+            1,
+        ),
+        book_id: ID
+        parent_id: Some(
+            2,
+        ),
+        level: None,
+        path: None,
+    },
+]

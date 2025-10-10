@@ -168,7 +168,26 @@ pub async fn search(
         return format::json(Vec::<MediaResponse>::new());
     }
 
-    let medias = Model::search(&ctx.db, user.id, query).await?;
+    // 支持可选的 book_id 过滤
+    let medias = if let Some(book_id_str) = params.get("book_id") {
+        if let Ok(book_id) = book_id_str.parse::<i32>() {
+            // 验证用户是否有权限访问该书籍
+            let _book = books::Entity::find_by_id(book_id)
+                .filter(books::Column::UserId.eq(user.id))
+                .one(&ctx.db)
+                .await?
+                .ok_or_else(|| Error::NotFound)?;
+
+            Model::search_by_book(&ctx.db, user.id, book_id, query).await?
+        } else {
+            // 如果 book_id 解析失败，搜索所有媒体
+            Model::search(&ctx.db, user.id, query).await?
+        }
+    } else {
+        // 搜索所有媒体
+        Model::search(&ctx.db, user.id, query).await?
+    };
+
     let responses: Vec<MediaResponse> = medias.into_iter().map(MediaResponse::from).collect();
 
     format::json(responses)

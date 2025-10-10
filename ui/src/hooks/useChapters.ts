@@ -15,6 +15,15 @@ export const useChapters = (bookId: number) => {
   })
 }
 
+export const useSearchChapters = (bookId: number, query: string) => {
+  return useQuery({
+    queryKey: ['chapters', 'search', bookId, query],
+    queryFn: () => chaptersService.searchChapters(bookId, query),
+    enabled: !!bookId && query.length > 0,
+    staleTime: 1000 * 60 * 1, // 1 minute
+  })
+}
+
 export const useChapter = (bookId: number, id: number) => {
   return useQuery({
     queryKey: ['chapters', bookId, id],

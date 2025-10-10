@@ -1,0 +1,62 @@
+---
+source: tests/models/medias.rs
+expression: search_results
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "目标媒体1",
+        description: Some(
+            "这是第一个目标媒体",
+        ),
+        file_type: "audio",
+        file_path: "/test/media1.mp3",
+        file_size: Some(
+            1024,
+        ),
+        duration: None,
+        mime_type: None,
+        access_token: "test_token_1",
+        access_url: None,
+        qr_code_path: None,
+        file_version: 1,
+        original_filename: Some(
+            "media1.mp3",
+        ),
+        play_count: 0,
+        is_public: false,
+        chapter_id: None,
+        book_id: ID
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "目标媒体2",
+        description: Some(
+            "这是第二个目标媒体",
+        ),
+        file_type: "audio",
+        file_path: "/test/media3.mp3",
+        file_size: Some(
+            3072,
+        ),
+        duration: None,
+        mime_type: None,
+        access_token: "test_token_3",
+        access_url: None,
+        qr_code_path: None,
+        file_version: 1,
+        original_filename: Some(
+            "media3.mp3",
+        ),
+        play_count: 0,
+        is_public: false,
+        chapter_id: None,
+        book_id: ID
+        user_id: ID
+    },
+]

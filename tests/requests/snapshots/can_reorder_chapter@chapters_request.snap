@@ -4,7 +4,7 @@ expression: reordered_chapter
 ---
 Object {
     "book_id": Number(1),
-    "created_at": String("2025-10-10T15:48:29Z"),
+    "created_at": String("2025-10-10T17:00:20Z"),
     "description": Null,
     "id": Number(1),
     "level": Number(0),
@@ -13,5 +13,5 @@ Object {
     "path": String("1"),
     "sort_order": Number(5),
     "title": String("Chapter to Reorder"),
-    "updated_at": String("2025-10-10T15:48:29.474737Z"),
+    "updated_at": String("2025-10-10T17:00:20.638307Z"),
 }

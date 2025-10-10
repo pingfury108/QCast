@@ -224,6 +224,82 @@ async fn can_search_books() {
 
 #[tokio::test]
 #[serial]
+async fn can_search_books_with_parents() {
+    configure_insta!();
+
+    let boot = boot_test::<App>().await.unwrap();
+    seed::<App>(&boot.app_context).await.unwrap();
+
+    // 创建书籍层级结构
+    let root_book = ActiveModel {
+        title: Set("根书籍".to_string()),
+        user_id: Set(1),
+        sort_order: Set(Some(1)),
+        ..Default::default()
+    }
+    .insert(&boot.app_context.db)
+    .await
+    .unwrap();
+
+    let child_book = ActiveModel {
+        title: Set("子书籍".to_string()),
+        user_id: Set(1),
+        parent_id: Set(Some(root_book.id)),
+        sort_order: Set(Some(1)),
+        ..Default::default()
+    }
+    .insert(&boot.app_context.db)
+    .await
+    .unwrap();
+
+    let grandchild_book = ActiveModel {
+        title: Set("孙子书籍目标".to_string()),
+        description: Set(Some("这是目标书籍".to_string())),
+        user_id: Set(1),
+        parent_id: Set(Some(child_book.id)),
+        sort_order: Set(Some(1)),
+        ..Default::default()
+    }
+    .insert(&boot.app_context.db)
+    .await
+    .unwrap();
+
+    // 创建一个无关的书籍
+    let _other_book = ActiveModel {
+        title: Set("无关书籍".to_string()),
+        user_id: Set(1),
+        ..Default::default()
+    }
+    .insert(&boot.app_context.db)
+    .await
+    .unwrap();
+
+    // 使用 search_with_parents 搜索包含"目标"的书籍
+    let search_results = books::Model::search_with_parents(&boot.app_context.db, 1, "目标")
+        .await
+        .unwrap();
+
+    // 应该返回孙子书籍、子书籍和根书籍（3个）
+    assert_eq!(search_results.len(), 3);
+
+    // 验证包含所有祖先
+    let ids: Vec<i32> = search_results.iter().map(|b| b.id).collect();
+    assert!(ids.contains(&root_book.id));
+    assert!(ids.contains(&child_book.id));
+    assert!(ids.contains(&grandchild_book.id));
+
+    // 验证不包含无关书籍
+    assert!(!ids.contains(&_other_book.id));
+
+    with_settings!({
+        filters => cleanup_book_model()
+    }, {
+        assert_debug_snapshot!(search_results);
+    });
+}
+
+#[tokio::test]
+#[serial]
 async fn can_update_book() {
     configure_insta!();
 

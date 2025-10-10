@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useBooks, useCreateBook, useUpdateBook, useDeleteBook } from '../hooks/useBooks'
+import { useBooks, useSearchBooks, useCreateBook, useUpdateBook, useDeleteBook } from '../hooks/useBooks'
 import type { Book, BookTree } from '../hooks/useBooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -190,9 +190,14 @@ export default function DashboardBooks() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const { data: books, isLoading, error } = useBooks()
+  const { data: searchResults, isLoading: isSearching } = useSearchBooks(searchQuery)
   const createBookMutation = useCreateBook()
   const updateBookMutation = useUpdateBook()
   const deleteBookMutation = useDeleteBook()
+
+  // 根据搜索状态决定使用哪个数据源
+  const displayBooks = searchQuery.length > 0 ? searchResults : books
+  const isLoadingData = searchQuery.length > 0 ? isSearching : isLoading
 
   const createForm = useForm<CreateBookForm>({
     resolver: zodResolver(createBookSchema),
@@ -247,12 +252,10 @@ export default function DashboardBooks() {
     return rootBooks
   }
 
-  const treeData = buildTreeData(books || [])
+  const treeData = buildTreeData(displayBooks || [])
 
-  const filteredTreeData = treeData.filter(treeNode =>
-    treeNode.book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    treeNode.book.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // 搜索时不需要客户端过滤，直接使用后端搜索结果
+  const filteredTreeData = treeData
 
   const handleCreateBook = (data: CreateBookForm) => {
     // 如果设置了parentBookId，添加到表单数据中
@@ -308,7 +311,7 @@ export default function DashboardBooks() {
     })
   }
 
-  if (isLoading) {
+  if (isLoadingData) {
     return (
       <div className="flex justify-center items-center h-64">加载中...</div>
     )

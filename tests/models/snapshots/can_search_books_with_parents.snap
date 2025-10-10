@@ -1,0 +1,54 @@
+---
+source: tests/models/books.rs
+expression: search_results
+---
+[
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "根书籍",
+        description: None,
+        cover_image: None,
+        parent_id: None,
+        sort_order: Some(
+            1,
+        ),
+        is_public: None,
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "子书籍",
+        description: None,
+        cover_image: None,
+        parent_id: Some(
+            1,
+        ),
+        sort_order: Some(
+            1,
+        ),
+        is_public: None,
+        user_id: ID
+    },
+    Model {
+        created_at: DATE,
+        updated_at: DATE,
+        id: ID
+        title: "孙子书籍目标",
+        description: Some(
+            "这是目标书籍",
+        ),
+        cover_image: None,
+        parent_id: Some(
+            2,
+        ),
+        sort_order: Some(
+            1,
+        ),
+        is_public: None,
+        user_id: ID
+    },
+]

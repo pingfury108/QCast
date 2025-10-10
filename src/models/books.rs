@@ -95,6 +95,57 @@ impl Model {
             .await
     }
 
+    /// 搜索书籍（包含所有父书籍）
+    pub async fn search_with_parents(
+        db: &DatabaseConnection,
+        user_id: i32,
+        query: &str,
+    ) -> Result<Vec<Model>, DbErr> {
+        // 先获取匹配的书籍
+        let matched_books = Self::search(db, user_id, query).await?;
+
+        if matched_books.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // 收集所有需要包含的书籍ID
+        let mut book_ids = std::collections::HashSet::new();
+        for book in &matched_books {
+            book_ids.insert(book.id);
+
+            // 递归查找所有父书籍
+            let mut current_parent_id = book.parent_id;
+            while let Some(parent_id) = current_parent_id {
+                if book_ids.contains(&parent_id) {
+                    break; // 避免循环
+                }
+                book_ids.insert(parent_id);
+
+                // 查找父书籍
+                if let Some(parent) = Entity::find_by_id(parent_id)
+                    .filter(Column::UserId.eq(user_id))
+                    .one(db)
+                    .await?
+                {
+                    current_parent_id = parent.parent_id;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 获取所有书籍（包括匹配的和父书籍）
+        let all_books = Entity::find()
+            .filter(Column::UserId.eq(user_id))
+            .filter(Column::Id.is_in(book_ids.into_iter().collect::<Vec<_>>()))
+            .order_by_asc(Column::SortOrder)
+            .order_by_asc(Column::CreatedAt)
+            .all(db)
+            .await?;
+
+        Ok(all_books)
+    }
+
     /// 获取书籍的完整树形结构（递归获取所有子书籍）
     pub async fn get_tree(db: &DatabaseConnection, book_id: i32) -> Result<BookTree, DbErr> {
         let book = Entity::find_by_id(book_id)
