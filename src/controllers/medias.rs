@@ -1041,13 +1041,10 @@ async fn increment_play_count_safe(ctx: &AppContext, media_id: i32) -> Result<()
         let mut active_model: crate::models::_entities::medias::ActiveModel = media.into();
         active_model.play_count = Set(play_count + 1);
 
-        active_model
-            .update(&ctx.db)
-            .await
-            .map_err(|e| {
-                tracing::warn!("更新媒体 {} 播放次数失败: {}", media_id, e);
-                e
-            })?;
+        active_model.update(&ctx.db).await.map_err(|e| {
+            tracing::warn!("更新媒体 {} 播放次数失败: {}", media_id, e);
+            e
+        })?;
     }
 
     Ok(())

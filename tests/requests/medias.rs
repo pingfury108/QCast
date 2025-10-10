@@ -961,7 +961,9 @@ async fn can_stream_media_without_auth() {
         .await;
 
         // 不需要认证，直接访问流媒体端点
-        let response = request.get(&format!("/api/media/{}/stream", media.id)).await;
+        let response = request
+            .get(&format!("/api/media/{}/stream", media.id))
+            .await;
 
         // 由于文件不存在，应该返回 404
         assert_eq!(response.status_code(), 404);
@@ -1029,7 +1031,10 @@ async fn stream_media_supports_time_based_seeking() {
 
         // 测试无效的时间参数
         let response = request
-            .get(&format!("/api/media/{}/stream?start=invalid&end=120", media.id))
+            .get(&format!(
+                "/api/media/{}/stream?start=invalid&end=120",
+                media.id
+            ))
             .await;
 
         assert_eq!(response.status_code(), 404);
