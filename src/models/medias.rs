@@ -2,8 +2,8 @@ pub use super::_entities::books;
 pub use super::_entities::medias::{ActiveModel, Column, Entity, Model};
 pub use super::_entities::users;
 use sea_orm::entity::prelude::*;
-use sea_orm::QueryOrder;
-use sea_orm::Set;
+use sea_orm::sea_query::{Condition, Expr, Func};
+use sea_orm::{QueryOrder, Set};
 use uuid::Uuid;
 pub type Medias = Entity;
 
@@ -68,13 +68,23 @@ impl Model {
         user_id: i32,
         query: &str,
     ) -> Result<Vec<Model>, DbErr> {
+        // 转换为小写进行大小写不敏感搜索（跨数据库兼容）
+        let query_lower = query.to_lowercase();
+        let search_pattern = format!("%{query_lower}%");
+
         Entity::find()
             .filter(Column::UserId.eq(user_id))
             .filter(
-                Column::Title
-                    .contains(query)
-                    .or(Column::Description.contains(query))
-                    .or(Column::OriginalFilename.contains(query)),
+                Condition::any()
+                    .add(Expr::expr(Func::lower(Expr::col(Column::Title))).like(&search_pattern))
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(Column::Description)))
+                            .like(&search_pattern),
+                    )
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(Column::OriginalFilename)))
+                            .like(&search_pattern),
+                    ),
             )
             .order_by_desc(Column::CreatedAt)
             .all(db)

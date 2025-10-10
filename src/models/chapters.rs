@@ -1,12 +1,10 @@
 pub use super::_entities::books;
 pub use super::_entities::chapters::{ActiveModel, Column, Entity, Model};
 use sea_orm::entity::prelude::*;
-use sea_orm::DatabaseTransaction;
-use sea_orm::IntoActiveModel;
-use sea_orm::QueryOrder;
-use sea_orm::QuerySelect;
-use sea_orm::Set;
-use sea_orm::TransactionTrait;
+use sea_orm::sea_query::{Condition, Expr, Func};
+use sea_orm::{
+    DatabaseTransaction, IntoActiveModel, QueryOrder, QuerySelect, Set, TransactionTrait,
+};
 use serde::{Deserialize, Serialize};
 pub type Chapters = Entity;
 
@@ -108,12 +106,19 @@ impl Model {
         book_id: i32,
         query: &str,
     ) -> Result<Vec<Model>, DbErr> {
+        // 转换为小写进行大小写不敏感搜索（跨数据库兼容）
+        let query_lower = query.to_lowercase();
+        let search_pattern = format!("%{query_lower}%");
+
         Entity::find()
             .filter(Column::BookId.eq(book_id))
             .filter(
-                Column::Title
-                    .contains(query)
-                    .or(Column::Description.contains(query)),
+                Condition::any()
+                    .add(Expr::expr(Func::lower(Expr::col(Column::Title))).like(&search_pattern))
+                    .add(
+                        Expr::expr(Func::lower(Expr::col(Column::Description)))
+                            .like(&search_pattern),
+                    ),
             )
             .order_by_asc(Column::SortOrder)
             .order_by_asc(Column::CreatedAt)

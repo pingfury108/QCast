@@ -4,11 +4,11 @@ expression: parent_medias
 ---
 [
     Object {
-        "access_token": String("6e431407-d1e7-4ea4-b3f9-1046797487a7"),
-        "access_url": String("http://localhost:5150/public/media/6e431407-d1e7-4ea4-b3f9-1046797487a7"),
+        "access_token": String("df01f9eb-8909-4586-9cca-9ab866cc6e75"),
+        "access_url": String("http://localhost:5150/public/media/df01f9eb-8909-4586-9cca-9ab866cc6e75"),
         "book_id": Number(1),
         "chapter_id": Number(1),
-        "created_at": String("2025-10-10T10:19:22Z"),
+        "created_at": String("2025-10-10T15:48:48Z"),
         "description": String("Media in parent chapter"),
         "duration": Number(120),
         "file_path": String("/test/path.mp3"),
@@ -22,7 +22,7 @@ expression: parent_medias
         "play_count": Number(0),
         "qr_code_path": Null,
         "title": String("Parent Media"),
-        "updated_at": String("2025-10-10T10:19:22.626068Z"),
+        "updated_at": String("2025-10-10T15:48:48.854182Z"),
         "user_id": Number(1),
     },
 ]
