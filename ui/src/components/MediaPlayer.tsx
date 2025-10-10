@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Play, Pause, Volume2, VolumeX, X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Media } from '../services/medias'
 
 interface MediaPlayerProps {
@@ -179,20 +179,18 @@ export function MediaPlayer({ media, onClose, isOpen }: MediaPlayerProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full min-w-[800px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-8">
-            <span className="truncate">{media.title}</span>
-            <div className="flex gap-4 items-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadMedia}
-                className="flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                下载
-              </Button>
-            </div>
-          </DialogTitle>
+          <div className="flex items-center justify-between pr-8">
+            <DialogTitle className="truncate">{media.title}</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadMedia}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              下载
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* 原生媒体播放器 - 简化设计 */}

@@ -18,10 +18,11 @@ import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download, PlayCircle } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { MediaPlayer } from '../components/MediaPlayer'
+import { MediaPreview } from '../components/MediaPreview'
 import { mediasService } from '../services/medias'
 import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -698,7 +699,7 @@ export default function BookDetailPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="media" className="flex items-center gap-2">
               <Music className="w-4 h-4" />
               媒体
@@ -706,6 +707,10 @@ export default function BookDetailPage() {
             <TabsTrigger value="chapters" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
               章节
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="flex items-center gap-2">
+              <PlayCircle className="w-4 h-4" />
+              预览
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -896,6 +901,17 @@ export default function BookDetailPage() {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Preview Tab */}
+          <TabsContent value="preview" className="h-[calc(100vh-200px)]">
+            <MediaPreview
+              bookId={book.id}
+              chapters={chapterTree}
+              onChapterSelect={(chapter) => {
+                console.log('Selected chapter:', chapter)
+              }}
+            />
           </TabsContent>
         </Tabs>
 
