@@ -21,3 +21,4 @@ target/
 *.txt
 
 uploads/
+assets/static/

@@ -1,10 +1,9 @@
-import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { isAuthenticated, clearAuthState } from '../lib/auth';
+import { clearAuthState } from '../lib/auth';
 import { useAuthState } from '../hooks/useAuthState';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LogOut, User, Settings, LayoutDashboard } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
 
 interface HeaderProps {
   variant?: 'public' | 'auth' | 'dashboard';

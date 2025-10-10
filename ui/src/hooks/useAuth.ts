@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as authService from '../services/auth';
 import { saveAuthState, clearAuthState, getStoredAuthState } from '../lib/auth';
-import type { LoginRequest, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest, User } from '../types/auth';
+import type { User } from '../types/auth';
 
 // 登录
 export function useLogin() {
@@ -18,7 +18,7 @@ export function useLogin() {
       const user: User = {
         pid: data.pid,
         name: data.name,
-        email: data.email || '', // 如果登录接口返回了邮箱就使用，否则为空
+        email: '', // 登录接口不返回邮箱，后续通过 getCurrentUser 获取
       };
 
       // 保存认证信息

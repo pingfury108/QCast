@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 import type { Media } from '../services/medias'
+import { api } from '../lib/api'
 
 interface ReplaceMediaFileDialogProps {
   media: Media | null
@@ -60,7 +61,6 @@ export function ReplaceMediaFileDialog({
       const formData = new FormData()
       formData.append('file', file)
 
-      const { api } = await import('../lib/api')
       await api.put(`/media/${media.id}/replace-file`, formData, {
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {

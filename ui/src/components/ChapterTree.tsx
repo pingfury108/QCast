@@ -9,7 +9,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Textarea } from '@/components/ui/textarea'
-import { toast } from 'sonner'
 import type { ChapterTree } from '../hooks/useChapters'
 
 interface ChapterTreeProps {
@@ -36,7 +35,6 @@ interface ChapterItemProps {
   bookId: number
   allChapters: ChapterTree[]
   siblings: ChapterTree[]
-  siblingIndex: number
   level?: number
   onEdit?: (chapter: ChapterTree) => void
   onDelete?: (chapter: ChapterTree) => void
@@ -51,7 +49,6 @@ function ChapterItem({
   bookId,
   allChapters,
   siblings,
-  siblingIndex,
   level = 0,
   onEdit,
   onDelete,
@@ -145,7 +142,7 @@ function ChapterItem({
 
     const isSameLevel = siblings.some(sibling => sibling.id === draggedId)
 
-    if (isSameLevel && onReorder && dropPosition) {
+    if (isSameLevel && onReorder && (dropPosition === 'before' || dropPosition === 'after')) {
       // 同级排序
       onReorder(draggedId, chapter.id, dropPosition)
     } else if (!isSameLevel && onDrop) {
@@ -286,7 +283,7 @@ function ChapterItem({
                 <Edit className="w-4 h-4 mr-2" />
                 编辑
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMove?.(chapter.id, null)}>
+              <DropdownMenuItem onClick={() => onMove?.(chapter.id, undefined)}>
                 <ChevronRight className="w-4 h-4 mr-2" />
                 移动到根级
               </DropdownMenuItem>
@@ -309,14 +306,13 @@ function ChapterItem({
       {/* 子章节 */}
       {isExpanded && hasChildren && (
         <div className="mt-1">
-          {chapter.children.map((child, index) => (
+          {chapter.children.map((child) => (
             <ChapterItem
               key={child.id}
               chapter={child}
               bookId={bookId}
               allChapters={allChapters}
               siblings={chapter.children || []}
-              siblingIndex={index}
               level={level + 1}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -456,14 +452,13 @@ export default function ChapterTree({
 
   return (
     <div className="space-y-1">
-      {chapters.map((chapter, index) => (
+      {chapters.map((chapter) => (
         <ChapterItem
           key={chapter.id}
           chapter={chapter}
           bookId={bookId}
           allChapters={chapters}
           siblings={chapters}
-          siblingIndex={index}
           level={0}
           onEdit={onEdit}
           onDelete={onDelete}

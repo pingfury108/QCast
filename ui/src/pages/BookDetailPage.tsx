@@ -12,20 +12,20 @@ import {
   useMoveChapter
 } from '../hooks/useChapters'
 import { useBookMedias, useToggleMediaPublish, useDeleteMedia, useUploadMedia } from '../hooks/useMedias'
-import type { Book } from '../hooks/useBooks'
-import type { Chapter, ChapterTree } from '../services/chapters'
+import type { Chapter } from '../services/chapters'
+import type { ChapterTree } from '../hooks/useChapters'
 import type { Media } from '../services/medias'
 import { DashboardLayout } from '../components/DashboardLayout'
 import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, ChevronUp, ChevronDown, Copy, QrCode, Upload as UploadIcon, X, RefreshCw, Video, Download } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, BookOpen, Music, Plus, Settings, MoreHorizontal, Copy, QrCode, RefreshCw, Video, Download } from 'lucide-react'
 import { EditMediaDialog } from '../components/EditMediaDialog'
 import { ReplaceMediaFileDialog } from '../components/ReplaceMediaFileDialog'
 import { MediaPlayer } from '../components/MediaPlayer'
 import { mediasService } from '../services/medias'
 import { useQueryClient } from '@tanstack/react-query'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import ChapterTree from '../components/ChapterTree'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import ChapterTreeComponent from '../components/ChapterTree'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
+import { Progress } from '@/components/ui/progress'
 import ExcelJS from 'exceljs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -43,7 +44,7 @@ const updateBookSchema = z.object({
   title: z.string().min(1, '书名不能为空'),
   description: z.string().optional(),
   cover_image: z.string().optional(),
-  is_public: z.boolean().default(false)
+  is_public: z.boolean()
 })
 
 const createChapterSchema = z.object({
@@ -70,6 +71,13 @@ type UploadMediaForm = z.infer<typeof uploadMediaSchema>
 
 export default function BookDetailPage() {
   const { id } = useParams<{ id: string }>()
+  if (!id) {
+    return (
+      <DashboardLayout>
+        <div className="text-center text-destructive">无效的书籍 ID</div>
+      </DashboardLayout>
+    )
+  }
   const bookId = parseInt(id)
   const queryClient = useQueryClient()
 
@@ -84,7 +92,6 @@ export default function BookDetailPage() {
   const [qrCodeMedia, setQrCodeMedia] = useState<Media | null>(null)
   const [activeTab, setActiveTab] = useState('media')
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
-  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set())
   const [editingMedia, setEditingMedia] = useState<Media | null>(null)
   const [editMediaDialogOpen, setEditMediaDialogOpen] = useState(false)
   const [replacingMedia, setReplacingMedia] = useState<Media | null>(null)
@@ -92,7 +99,7 @@ export default function BookDetailPage() {
   const [playingMediaId, setPlayingMediaId] = useState<number | null>(null)
 
   const { data: book, isLoading, error } = useBook(bookId)
-  const { data: chapters = [], isLoading: chaptersLoading } = useChapters(bookId)
+  const { data: chapters = [] } = useChapters(bookId)
   const { data: chapterTree = [], isLoading: chapterTreeLoading } = useChapterTree(bookId)
   const { data: medias = [], isLoading: mediasLoading } = useBookMedias(bookId)
   const updateBookMutation = useUpdateBook()
@@ -179,15 +186,6 @@ export default function BookDetailPage() {
     chapterForm.reset()
   }
 
-  const handleEditChapter = (chapter: Chapter) => {
-    setEditingChapter(chapter)
-    editChapterForm.reset({
-      title: chapter.title,
-      description: chapter.description || ''
-    })
-    setEditChapterDialogOpen(true)
-  }
-
   const handleUpdateChapter = (data: UpdateChapterForm) => {
     if (!book || !editingChapter) return
     updateChapterMutation.mutate({
@@ -270,22 +268,6 @@ export default function BookDetailPage() {
     return null
   }
 
-  const handleMoveChapterUp = (chapter: Chapter) => {
-    if (!book) return
-    moveChapterUpMutation.mutate({
-      bookId: book.id,
-      id: chapter.id
-    })
-  }
-
-  const handleMoveChapterDown = (chapter: Chapter) => {
-    if (!book) return
-    moveChapterDownMutation.mutate({
-      bookId: book.id,
-      id: chapter.id
-    })
-  }
-
   const handleReorderChapter = (draggedId: number, targetId: number, position: 'before' | 'after') => {
     // 同级内重新排序
     if (!book) return
@@ -364,70 +346,72 @@ export default function BookDetailPage() {
 
   // 将 SVG 转换为 PNG（通过 API 获取）
   const convertSvgToPng = async (mediaId: number): Promise<ArrayBuffer> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 使用 API 接口获取二维码（与查看二维码相同的方式）
-        const response = await api.get(`/media/${mediaId}/qrcode`, {
-          responseType: 'blob'
-        })
+    return new Promise((resolve, reject) => {
+      (async () => {
+        try {
+          // 使用 API 接口获取二维码（与查看二维码相同的方式）
+          const response = await api.get(`/media/${mediaId}/qrcode`, {
+            responseType: 'blob'
+          })
 
-        // 读取 blob 为文本
-        const blob = response.data as Blob
-        const svgText = await blob.text()
+          // 读取 blob 为文本
+          const blob = response.data as Blob
+          const svgText = await blob.text()
 
-        // 创建一个图片对象加载 SVG
-        const img = new Image()
+          // 创建一个图片对象加载 SVG
+          const img = new Image()
 
-        // 创建 blob URL
-        const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
-        const url = URL.createObjectURL(svgBlob)
+          // 创建 blob URL
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' })
+          const url = URL.createObjectURL(svgBlob)
 
-        img.onload = () => {
-          try {
-            // 创建 canvas
-            const canvas = document.createElement('canvas')
-            canvas.width = 300
-            canvas.height = 300
-            const ctx = canvas.getContext('2d')
+          img.onload = () => {
+            try {
+              // 创建 canvas
+              const canvas = document.createElement('canvas')
+              canvas.width = 300
+              canvas.height = 300
+              const ctx = canvas.getContext('2d')
 
-            if (!ctx) {
-              reject(new Error('无法创建 canvas context'))
-              return
-            }
-
-            // 绘制白色背景
-            ctx.fillStyle = 'white'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-            // 绘制图片到 canvas
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-
-            // 转换为 PNG blob
-            canvas.toBlob(async (blob) => {
-              URL.revokeObjectURL(url)
-              if (blob) {
-                const arrayBuffer = await blob.arrayBuffer()
-                resolve(arrayBuffer)
-              } else {
-                reject(new Error('转换 PNG 失败'))
+              if (!ctx) {
+                reject(new Error('无法创建 canvas context'))
+                return
               }
-            }, 'image/png', 1.0)
-          } catch (error) {
-            URL.revokeObjectURL(url)
-            reject(error)
+
+              // 绘制白色背景
+              ctx.fillStyle = 'white'
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+              // 绘制图片到 canvas
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+              // 转换为 PNG blob
+              canvas.toBlob(async (blob) => {
+                URL.revokeObjectURL(url)
+                if (blob) {
+                  const arrayBuffer = await blob.arrayBuffer()
+                  resolve(arrayBuffer)
+                } else {
+                  reject(new Error('转换 PNG 失败'))
+                }
+              }, 'image/png', 1.0)
+            } catch (error) {
+              URL.revokeObjectURL(url)
+              reject(error)
+            }
           }
+
+          img.onerror = () => {
+            URL.revokeObjectURL(url)
+            reject(new Error('加载 SVG 失败'))
+          }
+
+          img.src = url
+
+        } catch (error) {
+          reject(error)
         }
-
-        img.onerror = (e) => {
-          URL.revokeObjectURL(url)
-          reject(new Error('加载 SVG 失败'))
-        }
-
-        img.src = url
-
-      } catch (error) {
-        reject(error)
-      }
+      })()
     })
   }
 
@@ -510,7 +494,7 @@ export default function BookDetailPage() {
       }
 
       // 设置所有单元格边框
-      worksheet.eachRow((row, rowNumber) => {
+      worksheet.eachRow((row) => {
         row.eachCell((cell) => {
           cell.border = {
             top: { style: 'thin' },
@@ -866,7 +850,7 @@ export default function BookDetailPage() {
             {chapterTreeLoading ? (
               <div className="text-center py-8">加载章节中...</div>
             ) : (
-              <ChapterTree
+              <ChapterTreeComponent
                 chapters={chapterTree}
                 bookId={book.id}
                 onEdit={(chapter) => {
@@ -1096,7 +1080,7 @@ export default function BookDetailPage() {
                 <FormField
                   control={uploadMediaForm.control}
                   name="file"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>选择文件</FormLabel>
                       <FormControl>
@@ -1218,7 +1202,7 @@ export default function BookDetailPage() {
                 <>
                   <div className="text-center">
                     <p className="font-medium">{qrCodeMedia.title}</p>
-                    <p className="text-sm text-muted-foreground">{qrCodeMedia.file_name}</p>
+                    <p className="text-sm text-muted-foreground">{qrCodeMedia.original_filename}</p>
                   </div>
 
                   {qrCodeUrl ? (

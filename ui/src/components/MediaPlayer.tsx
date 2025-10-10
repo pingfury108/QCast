@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactPlayer from 'react-player'
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, X } from 'lucide-react'
+import { Play, Pause, Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import type { Media } from '../services/medias'
@@ -18,11 +18,10 @@ export function MediaPlayer({ media, onClose }: MediaPlayerProps) {
   const [played, setPlayed] = useState(0)
   const [duration, setDuration] = useState(0)
   const [seeking, setSeeking] = useState(false)
-  const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const playerRef = useRef<ReactPlayer>(null)
+  const playerRef = useRef<any>(null)
 
   // 使用 Fetch API 获取媒体文件（可以携带认证 header）
   useEffect(() => {
@@ -117,7 +116,6 @@ export function MediaPlayer({ media, onClose }: MediaPlayerProps) {
 
   const handleReady = () => {
     console.log('播放器就绪')
-    setReady(true)
     setError(null)
 
     // 手动获取时长
@@ -139,7 +137,6 @@ export function MediaPlayer({ media, onClose }: MediaPlayerProps) {
       media
     })
     setError('播放失败，请检查媒体文件')
-    setReady(true) // 仍然显示控制条
   }
 
   const formatTime = (seconds: number) => {
@@ -157,27 +154,29 @@ export function MediaPlayer({ media, onClose }: MediaPlayerProps) {
         {/* 播放器 */}
         {mediaUrl && (
           <ReactPlayer
-            ref={playerRef}
-            url={mediaUrl}
-            playing={playing}
-            volume={volume}
-            muted={muted}
-            controls={false}
-            width="100%"
-            height="100%"
-            onReady={handleReady}
-            onProgress={handleProgress}
-            onError={handleError}
-            config={{
-              file: {
-                attributes: {
-                  controlsList: 'nodownload',
-                  playsInline: true,
-                },
-                forceVideo: isVideo,
-                forceAudio: !isVideo,
+            {...{
+              ref: playerRef,
+              url: mediaUrl,
+              playing: playing,
+              volume: volume,
+              muted: muted,
+              controls: false,
+              width: "100%",
+              height: "100%",
+              onReady: handleReady,
+              onProgress: handleProgress,
+              onError: handleError,
+              config: {
+                file: {
+                  attributes: {
+                    controlsList: 'nodownload',
+                    playsInline: true,
+                  },
+                  forceVideo: isVideo,
+                  forceAudio: !isVideo,
+                }
               }
-            }}
+            } as any}
           />
         )}
 

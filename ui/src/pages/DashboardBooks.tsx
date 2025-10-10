@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useBooks, useCreateBook, useUpdateBook, useDeleteBook, useBookTree } from '../hooks/useBooks'
+import { useBooks, useCreateBook, useUpdateBook, useDeleteBook } from '../hooks/useBooks'
 import type { Book, BookTree } from '../hooks/useBooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, MoreHorizontal, ChevronRight, ChevronDown, QrCode, BookOpen, Music } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, MoreHorizontal, ChevronRight, ChevronDown, BookOpen, Music } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { toast } from 'sonner'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const createBookSchema = z.object({
@@ -23,7 +21,7 @@ const createBookSchema = z.object({
   cover_image: z.string().optional(),
   parent_id: z.number().optional(),
   sort_order: z.number().optional(),
-  is_public: z.boolean().default(false)
+  is_public: z.boolean()
 })
 
 type CreateBookForm = z.infer<typeof createBookSchema>
@@ -249,7 +247,7 @@ export default function DashboardBooks() {
     return rootBooks
   }
 
-  const treeData = buildTreeData(books)
+  const treeData = buildTreeData(books || [])
 
   const filteredTreeData = treeData.filter(treeNode =>
     treeNode.book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -1,6 +1,5 @@
-import { ReactNode, memo } from 'react'
-import Header from './Header'
-import Footer from './Footer'
+import { memo } from 'react'
+import type { ReactNode } from 'react'
 import { useCurrentUser } from '../hooks/useAuth'
 
 interface DashboardLayoutProps {
