@@ -4,11 +4,11 @@ expression: book1_medias
 ---
 [
     Object {
-        "access_token": String("8a5c5feb-cb30-41db-bc31-794cf0bfa2ed"),
-        "access_url": String("http://localhost:5150/public/media/8a5c5feb-cb30-41db-bc31-794cf0bfa2ed"),
+        "access_token": String("3e004619-d8c3-417e-a006-639bda1532b8"),
+        "access_url": String("http://localhost:5150/public/media/3e004619-d8c3-417e-a006-639bda1532b8"),
         "book_id": Number(1),
         "chapter_id": Null,
-        "created_at": String("2025-10-10T09:59:40Z"),
+        "created_at": String("2025-10-10T10:19:32Z"),
         "description": String("First book audio"),
         "duration": Number(120),
         "file_path": String("/test/path.mp3"),
@@ -22,15 +22,15 @@ expression: book1_medias
         "play_count": Number(0),
         "qr_code_path": Null,
         "title": String("Book 1 Audio 1"),
-        "updated_at": String("2025-10-10T09:59:40.196545Z"),
+        "updated_at": String("2025-10-10T10:19:32.053347Z"),
         "user_id": Number(1),
     },
     Object {
-        "access_token": String("6cc1437f-b91a-4253-9b9b-57038bd00124"),
-        "access_url": String("http://localhost:5150/public/media/6cc1437f-b91a-4253-9b9b-57038bd00124"),
+        "access_token": String("8725a7b1-d019-4fc2-b271-e9d965c47250"),
+        "access_url": String("http://localhost:5150/public/media/8725a7b1-d019-4fc2-b271-e9d965c47250"),
         "book_id": Number(1),
         "chapter_id": Null,
-        "created_at": String("2025-10-10T09:59:40Z"),
+        "created_at": String("2025-10-10T10:19:32Z"),
         "description": String("Second book audio"),
         "duration": Number(120),
         "file_path": String("/test/path.mp3"),
@@ -44,7 +44,7 @@ expression: book1_medias
         "play_count": Number(0),
         "qr_code_path": Null,
         "title": String("Book 1 Audio 2"),
-        "updated_at": String("2025-10-10T09:59:40.197695Z"),
+        "updated_at": String("2025-10-10T10:19:32.055038Z"),
         "user_id": Number(1),
     },
 ]

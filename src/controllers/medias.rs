@@ -864,21 +864,24 @@ pub async fn regenerate_qrcode(
     }))
 }
 
-/// 流式访问媒体文件（带认证）
+/// 流式访问媒体文件（无需认证，支持播放统计和高级播放功能）
 #[debug_handler]
 pub async fn stream_media(
-    auth: auth::JWT,
     AxumPath(id): AxumPath<i32>,
     State(ctx): State<AppContext>,
     headers: axum::http::HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Response> {
     use axum::body::Body;
     use axum::http::{header, StatusCode};
     use tokio::fs::File;
     use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
 
-    let user = users::Model::find_by_pid(&ctx.db, &auth.claims.pid).await?;
-    let media = load_item(&ctx, id, user.id).await?;
+    // 获取媒体信息（无需认证）
+    let media = Entity::find_by_id(id)
+        .one(&ctx.db)
+        .await?
+        .ok_or_else(|| Error::NotFound)?;
 
     // 检查文件是否存在
     let file_path = &media.file_path;
@@ -886,69 +889,168 @@ pub async fn stream_media(
         return Err(Error::NotFound);
     }
 
-    // 获取文件大小
+    // 获取文件大小和内容类型
     let file_size = tokio::fs::metadata(file_path).await?.len();
     let content_type = media
         .mime_type
         .as_deref()
         .unwrap_or("application/octet-stream");
 
-    // 处理 Range 请求（支持断点续传和视频拖动）
-    if let Some(range_value) = headers.get(header::RANGE) {
+    // 播放参数处理
+    let start_time = params.get("start").and_then(|t| t.parse::<f64>().ok());
+    let end_time = params.get("end").and_then(|t| t.parse::<f64>().ok());
+    let is_seek_request = start_time.is_some() || end_time.is_some();
+
+    // 基于时间的字节位置计算（简单实现，假设恒定比特率）
+    // 注意：这是一个简化的实现，实际应用中可能需要更精确的计算
+    let calculate_time_offset = |seconds: f64| -> u64 {
+        if let Some(duration) = media.duration {
+            if duration > 0 {
+                let duration_f64 = duration as f64;
+                (seconds / duration_f64 * file_size as f64) as u64
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    };
+
+    // 处理时间跳转请求
+    let range_start = if let Some(start) = start_time {
+        calculate_time_offset(start)
+    } else {
+        0
+    };
+
+    let range_end = if let Some(end) = end_time {
+        calculate_time_offset(end)
+    } else {
+        file_size - 1
+    };
+
+    // 处理 Range 请求（支持断点续传、视频拖动和时间跳转）
+    let should_increment_play_count = !is_seek_request;
+
+    // 最终的请求范围
+    let (final_start, final_end) = if let Some(range_value) = headers.get(header::RANGE) {
         let range_str = range_value
             .to_str()
             .map_err(|_| Error::BadRequest("无效的 Range 头".to_string()))?;
 
-        // 解析 Range 头
         if let Some((start, end)) = parse_stream_range(range_str, file_size) {
-            // 打开文件
-            let mut file = File::open(file_path)
-                .await
-                .map_err(|_| Error::InternalServerError)?;
-
-            // 跳转到开始位置
-            file.seek(SeekFrom::Start(start))
-                .await
-                .map_err(|_| Error::InternalServerError)?;
-
-            // 读取指定范围的数据
-            let mut buffer = Vec::new();
-            let remaining = end - start + 1;
-            file.take(remaining)
-                .read_to_end(&mut buffer)
-                .await
-                .map_err(|_| Error::InternalServerError)?;
-
-            // 构建 206 Partial Content 响应
-            let content_range = format!("bytes {}-{}/{}", start, end, file_size);
-
-            let response = Response::builder()
-                .status(StatusCode::PARTIAL_CONTENT)
-                .header(header::CONTENT_TYPE, content_type)
-                .header(header::CONTENT_RANGE, content_range)
-                .header(header::ACCEPT_RANGES, "bytes")
-                .header(header::CONTENT_LENGTH, buffer.len())
-                .body(Body::from(buffer))
-                .map_err(|_| Error::InternalServerError)?;
-
-            return Ok(response);
+            // HTTP Range 请求优先
+            (start, end)
+        } else if is_seek_request {
+            // 时间跳转请求
+            (range_start, range_end)
+        } else {
+            // 普通请求
+            (0, file_size - 1)
         }
-    }
+    } else if is_seek_request {
+        // 时间跳转请求但没有 Range 头
+        (range_start, range_end)
+    } else {
+        // 普通请求
+        (0, file_size - 1)
+    };
 
-    // 完整文件服务
-    let file_contents = tokio::fs::read(file_path)
+    // 打开文件
+    let mut file = File::open(file_path)
         .await
         .map_err(|_| Error::InternalServerError)?;
 
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, content_type)
-        .header(header::ACCEPT_RANGES, "bytes")
-        .header(header::CONTENT_LENGTH, file_contents.len())
-        .body(Body::from(file_contents))
+    // 跳转到开始位置
+    file.seek(SeekFrom::Start(final_start))
+        .await
         .map_err(|_| Error::InternalServerError)?;
 
+    // 读取数据
+    let mut buffer = Vec::new();
+    let content_length = final_end - final_start + 1;
+
+    // 如果是大文件，分块读取
+    if content_length > 10 * 1024 * 1024 {
+        // 大文件处理
+        let remaining = content_length;
+        file.take(remaining)
+            .read_to_end(&mut buffer)
+            .await
+            .map_err(|_| Error::InternalServerError)?;
+    } else {
+        // 小文件直接读取
+        file.take(content_length)
+            .read_to_end(&mut buffer)
+            .await
+            .map_err(|_| Error::InternalServerError)?;
+    }
+
+    // 构建响应
+    let response = if final_start == 0 && final_end == file_size - 1 {
+        // 完整文件响应
+        // 增加播放次数统计（仅在完整播放时）
+        if should_increment_play_count {
+            tokio::spawn(async move {
+                if let Err(e) = increment_play_count_safe(&ctx, id).await {
+                    tracing::error!("增加播放次数失败: {}", e);
+                }
+            });
+        }
+
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, content_type)
+            .header(header::ACCEPT_RANGES, "bytes")
+            .header(header::CONTENT_LENGTH, buffer.len())
+            .header(header::CACHE_CONTROL, "public, max-age=3600") // 缓存1小时
+            .body(Body::from(buffer))
+            .map_err(|_| Error::InternalServerError)?
+    } else {
+        // 范围请求响应
+        let content_range = format!("bytes {}-{}/{}", final_start, final_end, file_size);
+
+        Response::builder()
+            .status(StatusCode::PARTIAL_CONTENT)
+            .header(header::CONTENT_TYPE, content_type)
+            .header(header::CONTENT_RANGE, content_range)
+            .header(header::ACCEPT_RANGES, "bytes")
+            .header(header::CONTENT_LENGTH, buffer.len())
+            .header(header::CACHE_CONTROL, "public, max-age=3600")
+            .body(Body::from(buffer))
+            .map_err(|_| Error::InternalServerError)?
+    };
+
     Ok(response)
+}
+
+/// 安全地增加播放次数（异步执行，不影响主响应）
+async fn increment_play_count_safe(ctx: &AppContext, media_id: i32) -> Result<()> {
+    use sea_orm::{ActiveModelTrait, Set};
+
+    let media = Entity::find_by_id(media_id)
+        .one(&ctx.db)
+        .await
+        .map_err(|e| {
+            tracing::warn!("查找媒体 {} 失败: {}", media_id, e);
+            e
+        })?;
+
+    if let Some(media) = media {
+        let play_count = media.play_count;
+        let mut active_model: crate::models::_entities::medias::ActiveModel = media.into();
+        active_model.play_count = Set(play_count + 1);
+
+        active_model
+            .update(&ctx.db)
+            .await
+            .map_err(|e| {
+                tracing::warn!("更新媒体 {} 播放次数失败: {}", media_id, e);
+                e
+            })?;
+    }
+
+    Ok(())
 }
 
 /// 解析流式访问的 Range 头

@@ -825,12 +825,11 @@ export default function BookDetailPage() {
                     </div>
 
                     {/* 展开的播放器 */}
-                    {playingMediaId === media.id && (
-                      <MediaPlayer
-                        media={media}
-                        onClose={() => setPlayingMediaId(null)}
-                      />
-                    )}
+                    <MediaPlayer
+                      media={media}
+                      isOpen={playingMediaId === media.id}
+                      onClose={() => setPlayingMediaId(null)}
+                    />
                   </div>
                 ))}
               </div>

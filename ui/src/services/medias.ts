@@ -83,6 +83,30 @@ export const mediasService = {
     return response.data
   },
 
+  // 流式播放媒体（新接口，无需认证）
+  async streamMedia(id: number, options?: {
+    startTime?: number
+    endTime?: number
+    range?: string
+  }): Promise<any> {
+    const params = new URLSearchParams()
+
+    if (options?.startTime !== undefined) {
+      params.append('start', options.startTime.toString())
+    }
+    if (options?.endTime !== undefined) {
+      params.append('end', options.endTime.toString())
+    }
+
+    const url = params.toString() ? `/media/${id}/stream?${params}` : `/media/${id}/stream`
+
+    const response = await api.get(url, {
+      headers: options?.range ? { 'Range': options.range } : {},
+      responseType: 'arraybuffer',
+    })
+    return response
+  },
+
   // 搜索媒体
   async searchMedias(query: string): Promise<Media[]> {
     const response = await api.get('/media/search', {

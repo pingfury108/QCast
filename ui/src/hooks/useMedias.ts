@@ -71,6 +71,27 @@ export const useMedia = (id: number) => {
   })
 }
 
+// 流式播放媒体 hook
+export const useStreamMedia = (id: number, options?: {
+  startTime?: number
+  endTime?: number
+  range?: string
+}) => {
+  return useQuery({
+    queryKey: ['medias', 'stream', id, options?.startTime, options?.endTime, options?.range],
+    queryFn: () => mediasService.streamMedia(id, options),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    select: (data) => ({
+      data,
+      // 处理 ArrayBuffer 数据
+      blob: new Blob([data], { type: 'application/octet-stream' }),
+      // 创建对象 URL
+      url: URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' })),
+    }),
+  })
+}
+
 export const useSearchMedias = (query: string) => {
   return useQuery({
     queryKey: ['medias', 'search', query],

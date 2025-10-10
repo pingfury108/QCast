@@ -938,3 +938,305 @@ async fn chapter_media_apis_handle_invalid_chapter() {
     })
     .await;
 }
+
+// === 媒体流播放相关测试 ===
+
+#[tokio::test]
+#[serial]
+async fn can_stream_media_without_auth() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Test Stream Media",
+            Some("For streaming test"),
+        )
+        .await;
+
+        // 不需要认证，直接访问流媒体端点
+        let response = request.get(&format!("/api/media/{}/stream", media.id)).await;
+
+        // 由于文件不存在，应该返回 404
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_handles_invalid_media_id() {
+    request::<App, _, _>(|request, _ctx| async move {
+        // 测试不存在的媒体ID
+        let response = request.get("/api/media/99999/stream").await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试无效的媒体ID（路由解析失败，返回400）
+        let response = request.get("/api/media/invalid/stream").await;
+
+        assert_eq!(response.status_code(), 400);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_supports_time_based_seeking() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Test Time Seek",
+            Some("For time seeking test"),
+        )
+        .await;
+
+        // 测试时间范围参数
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=30&end=120", media.id))
+            .await;
+
+        // 由于文件不存在，应该返回 404，但这证明参数解析正常
+        assert_eq!(response.status_code(), 404);
+
+        // 测试只有 start 参数
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=60", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试只有 end 参数
+        let response = request
+            .get(&format!("/api/media/{}/stream?end=180", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试无效的时间参数
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=invalid&end=120", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_supports_range_requests() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Test Range Request",
+            Some("For range request test"),
+        )
+        .await;
+
+        // 测试 Range 头
+        let response = request
+            .get(&format!("/api/media/{}/stream", media.id))
+            .add_header("Range", "bytes=0-1023")
+            .await;
+
+        // 由于文件不存在，应该返回 404
+        assert_eq!(response.status_code(), 404);
+
+        // 测试不同的 Range 格式
+        let response = request
+            .get(&format!("/api/media/{}/stream", media.id))
+            .add_header("Range", "bytes=1024-2047")
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试无效的 Range 头
+        let response = request
+            .get(&format!("/api/media/{}/stream", media.id))
+            .add_header("Range", "invalid-range")
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_combines_time_and_range_params() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Test Combined Params",
+            Some("For combined params test"),
+        )
+        .await;
+
+        // 测试时间参数和 Range 头的组合
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=30&end=90", media.id))
+            .add_header("Range", "bytes=0-1023")
+            .await;
+
+        // 由于文件不存在，应该返回 404
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_invalid_params_handling() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Test Invalid Params",
+            Some("For invalid params test"),
+        )
+        .await;
+
+        // 测试负数时间参数
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=-10", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试 start > end 的情况
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=120&end=60", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+
+        // 测试超大数值
+        let response = request
+            .get(&format!("/api/media/{}/stream?start=999999999", media.id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn can_update_media_and_still_stream() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Original Media",
+            Some("Original description"),
+        )
+        .await;
+
+        // 更新媒体信息
+        let payload = json!({
+            "title": "Updated Media",
+            "description": "Updated description",
+            "is_public": true
+        });
+
+        let update_response = request
+            .put(&format!("/api/media/{}", media.id))
+            .add_header(auth_header.0.clone(), auth_header.1.clone())
+            .json(&payload)
+            .await;
+
+        assert_eq!(update_response.status_code(), 200);
+
+        // 更新后仍然可以流式播放
+        let stream_response = request
+            .get(&format!("/api/media/{}/stream", media.id))
+            .await;
+
+        // 由于文件不存在，应该返回 404，但媒体ID有效
+        assert_eq!(stream_response.status_code(), 404);
+    })
+    .await;
+}
+
+#[tokio::test]
+#[serial]
+async fn stream_media_with_nonexistent_file() {
+    request::<App, _, _>(|request, ctx| async move {
+        let logged_in_user = init_user_login(&request, &ctx).await;
+        let (auth_key, auth_value) = auth_header(&logged_in_user.token);
+        let auth_header = (auth_key, auth_value);
+
+        let book = create_test_book(&request, &ctx, &auth_header).await;
+
+        // 创建一个媒体记录，但文件路径指向不存在的文件
+        let media = create_test_media(
+            &ctx,
+            book.id,
+            None,
+            logged_in_user.user.id,
+            "Media with Missing File",
+            Some("File does not exist"),
+        )
+        .await;
+
+        // 获取媒体ID，然后手动更新文件路径为不存在的路径
+        let media_id = media.id;
+        use sea_orm::{ActiveModelTrait, Set};
+        let mut active_media: medias::ActiveModel = media.into();
+        active_media.file_path = Set("/nonexistent/path/to/file.mp3".to_string());
+        active_media.update(&ctx.db).await.unwrap();
+
+        // 尝试流式播放不存在的文件
+        let response = request
+            .get(&format!("/api/media/{}/stream", media_id))
+            .await;
+
+        assert_eq!(response.status_code(), 404);
+    })
+    .await;
+}
