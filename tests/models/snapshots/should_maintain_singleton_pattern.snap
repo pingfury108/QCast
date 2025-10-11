@@ -1,0 +1,10 @@
+---
+source: tests/models/site_settings.rs
+expression: settings2
+---
+Model {
+    created_at: DATE,
+    updated_at: DATE,
+    id: ID
+    site_url: "http://localhost:5150",
+}

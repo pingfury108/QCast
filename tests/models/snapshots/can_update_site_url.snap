@@ -1,0 +1,10 @@
+---
+source: tests/models/site_settings.rs
+expression: updated_settings
+---
+Model {
+    created_at: DATE,
+    updated_at: DATE,
+    id: ID
+    site_url: "https://example.com",
+}

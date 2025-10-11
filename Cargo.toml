@@ -63,6 +63,8 @@ symphonia = { version = "0.5", features = [
 ] }
 # FFmpeg 用于视频元数据提取
 ffmpeg-next = "7.1"
+# URL 解析和验证
+url = "2.5"
 
 [[bin]]
 name = "qcast-cli"

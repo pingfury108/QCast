@@ -6,7 +6,7 @@ expression: flat_list
     Object {
         "book_id": Number(1),
         "children": Array [],
-        "created_at": String("2025-10-10T18:52:52Z"),
+        "created_at": String("2025-10-11T16:50:52Z"),
         "description": Null,
         "id": Number(1),
         "level": Number(0),
@@ -15,12 +15,12 @@ expression: flat_list
         "path": String("1"),
         "sort_order": Number(1),
         "title": String("Parent Chapter"),
-        "updated_at": String("2025-10-10T18:52:52.664963Z"),
+        "updated_at": String("2025-10-11T16:50:52.072752Z"),
     },
     Object {
         "book_id": Number(1),
         "children": Array [],
-        "created_at": String("2025-10-10T18:52:52Z"),
+        "created_at": String("2025-10-11T16:50:52Z"),
         "description": Null,
         "id": Number(2),
         "level": Number(1),
@@ -29,6 +29,6 @@ expression: flat_list
         "path": String("1/2"),
         "sort_order": Number(1),
         "title": String("Child Chapter"),
-        "updated_at": String("2025-10-10T18:52:52.669075Z"),
+        "updated_at": String("2025-10-11T16:50:52.077151Z"),
     },
 ]

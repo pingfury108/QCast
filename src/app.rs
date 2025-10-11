@@ -56,6 +56,7 @@ impl Hooks for App {
             // 后台管理路由
             .add_route(controllers::admin::users::routes())
             .add_route(controllers::admin::groups::routes())
+            .add_route(controllers::site_settings::routes())
     }
     async fn connect_workers(_ctx: &AppContext, _queue: &Queue) -> Result<()> {
         // 暂无 worker

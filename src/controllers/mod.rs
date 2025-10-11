@@ -5,3 +5,4 @@ pub mod chapters;
 pub mod dashboard;
 pub mod medias;
 pub mod public;
+pub mod site_settings;
