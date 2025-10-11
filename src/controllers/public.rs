@@ -8,7 +8,8 @@ use axum::http::{header, StatusCode};
 use axum::response::Response;
 use loco_rs::prelude::*;
 use tokio::fs::File;
-use tokio::io::{AsyncSeekExt, SeekFrom};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
+use tokio_util::io::ReaderStream;
 
 use crate::models::_entities::medias::{Column, Entity};
 use crate::views::medias::PublicMediaResponse;
@@ -133,7 +134,7 @@ fn parse_range_header(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
     None
 }
 
-/// 服务文件范围（Range 请求）
+/// 服务文件范围（Range 请求）- 流式传输
 async fn serve_range_file(
     file_path: &str,
     start: u64,
@@ -151,19 +152,16 @@ async fn serve_range_file(
         .await
         .map_err(|_| Error::InternalServerError)?;
 
-    // 读取指定范围的数据
-    let mut buffer = Vec::new();
-    let remaining = end - start + 1;
-    use tokio::io::AsyncReadExt;
-    file.take(remaining)
-        .read_to_end(&mut buffer)
-        .await
-        .map_err(|_| Error::InternalServerError)?;
+    // 计算范围长度
+    let content_length = end - start + 1;
+
+    // 限制读取长度，创建流式读取器
+    let reader = file.take(content_length);
+    let stream = ReaderStream::new(reader);
 
     // 构建 206 Partial Content 响应
     let content_type = mime_type.as_deref().unwrap_or("application/octet-stream");
     let content_range = format!("bytes {}-{}/{}", start, end, file_size);
-    let content_length = buffer.len();
 
     let response = Response::builder()
         .status(StatusCode::PARTIAL_CONTENT)
@@ -171,18 +169,27 @@ async fn serve_range_file(
         .header(header::CONTENT_RANGE, content_range)
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::CONTENT_LENGTH, content_length)
-        .body(Body::from(buffer))
+        .body(Body::from_stream(stream))
         .map_err(|_| Error::InternalServerError)?;
 
     Ok(response)
 }
 
-/// 服务完整文件
+/// 服务完整文件 - 流式传输
 async fn serve_full_file(file_path: &str, mime_type: &Option<String>) -> Result<Response> {
-    // 读取整个文件
-    let file_contents = tokio::fs::read(file_path)
+    // 打开文件
+    let file = File::open(file_path)
         .await
         .map_err(|_| Error::InternalServerError)?;
+
+    // 获取文件大小
+    let file_size = tokio::fs::metadata(file_path)
+        .await
+        .map_err(|_| Error::InternalServerError)?
+        .len();
+
+    // 创建流式读取器
+    let stream = ReaderStream::new(file);
 
     let content_type = mime_type.as_deref().unwrap_or("application/octet-stream");
 
@@ -190,8 +197,8 @@ async fn serve_full_file(file_path: &str, mime_type: &Option<String>) -> Result<
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
         .header(header::ACCEPT_RANGES, "bytes")
-        .header(header::CONTENT_LENGTH, file_contents.len())
-        .body(Body::from(file_contents))
+        .header(header::CONTENT_LENGTH, file_size)
+        .body(Body::from_stream(stream))
         .map_err(|_| Error::InternalServerError)?;
 
     Ok(response)

@@ -6,7 +6,8 @@ use axum::extract::{DefaultBodyLimit, Path as AxumPath, Query};
 use axum::routing::method_routing::delete as axum_delete;
 use axum_extra::extract::Multipart;
 use loco_rs::prelude::*;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::models::_entities::books;
@@ -916,7 +917,7 @@ pub async fn regenerate_qrcode(
     }))
 }
 
-/// 流式访问媒体文件（无需认证，支持播放统计和高级播放功能）
+/// 流式访问媒体文件（无需认证，支持播放统计和高级播放功能）- 真正的流式传输
 #[debug_handler]
 pub async fn stream_media(
     AxumPath(id): AxumPath<i32>,
@@ -927,7 +928,7 @@ pub async fn stream_media(
     use axum::body::Body;
     use axum::http::{header, StatusCode};
     use tokio::fs::File;
-    use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
+    use tokio::io::{AsyncSeekExt, SeekFrom};
 
     // 获取媒体信息（无需认证）
     let media = Entity::find_by_id(id)
@@ -1018,25 +1019,12 @@ pub async fn stream_media(
         .await
         .map_err(|_| Error::InternalServerError)?;
 
-    // 读取数据
-    let mut buffer = Vec::new();
+    // 计算内容长度
     let content_length = final_end - final_start + 1;
 
-    // 如果是大文件，分块读取
-    if content_length > 10 * 1024 * 1024 {
-        // 大文件处理
-        let remaining = content_length;
-        file.take(remaining)
-            .read_to_end(&mut buffer)
-            .await
-            .map_err(|_| Error::InternalServerError)?;
-    } else {
-        // 小文件直接读取
-        file.take(content_length)
-            .read_to_end(&mut buffer)
-            .await
-            .map_err(|_| Error::InternalServerError)?;
-    }
+    // 创建流式读取器，限制读取长度
+    let reader = file.take(content_length);
+    let stream = ReaderStream::new(reader);
 
     // 构建响应
     let response = if final_start == 0 && final_end == file_size - 1 {
@@ -1054,22 +1042,22 @@ pub async fn stream_media(
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, content_type)
             .header(header::ACCEPT_RANGES, "bytes")
-            .header(header::CONTENT_LENGTH, buffer.len())
+            .header(header::CONTENT_LENGTH, content_length)
             .header(header::CACHE_CONTROL, "public, max-age=3600") // 缓存1小时
-            .body(Body::from(buffer))
+            .body(Body::from_stream(stream))
             .map_err(|_| Error::InternalServerError)?
     } else {
         // 范围请求响应
-        let content_range = format!("bytes {final_start}-{final_end}/{file_size}");
+        let content_range = format!("bytes {}-{}/{}", final_start, final_end, file_size);
 
         Response::builder()
             .status(StatusCode::PARTIAL_CONTENT)
             .header(header::CONTENT_TYPE, content_type)
             .header(header::CONTENT_RANGE, content_range)
             .header(header::ACCEPT_RANGES, "bytes")
-            .header(header::CONTENT_LENGTH, buffer.len())
+            .header(header::CONTENT_LENGTH, content_length)
             .header(header::CACHE_CONTROL, "public, max-age=3600")
-            .body(Body::from(buffer))
+            .body(Body::from_stream(stream))
             .map_err(|_| Error::InternalServerError)?
     };
 
