@@ -13,6 +13,10 @@ import BookDetailPage from '../pages/BookDetailPage';
 import PublicMediaPage from '../pages/PublicMediaPage';
 import ProfilePage from '../pages/ProfilePage';
 import SettingsPage from '../pages/SettingsPage';
+import { ProtectedRoute as AdminProtectedRoute } from '../components/admin/ProtectedRoute';
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
+import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
+import { AdminGroupsPage } from '../pages/admin/AdminGroupsPage';
 
 // 创建路由配置
 export const router = createBrowserRouter([
@@ -86,6 +90,30 @@ export const router = createBrowserRouter([
               <SettingsPage />
             </DashboardLayout>
           </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin',
+        element: (
+          <AdminProtectedRoute>
+            <AdminDashboardPage />
+          </AdminProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/users',
+        element: (
+          <AdminProtectedRoute>
+            <AdminUsersPage />
+          </AdminProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/groups',
+        element: (
+          <AdminProtectedRoute>
+            <AdminGroupsPage />
+          </AdminProtectedRoute>
         ),
       },
     ],

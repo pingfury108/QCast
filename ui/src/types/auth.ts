@@ -1,7 +1,13 @@
 export interface User {
+  id: number;
   pid: string;
   name: string;
   email: string;
+  is_staff: boolean;
+  is_superuser: boolean;
+  email_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface LoginRequest {
@@ -14,6 +20,8 @@ export interface LoginResponse {
   pid: string;
   name: string;
   is_verified: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
 }
 
 export interface RegisterRequest {
@@ -35,6 +43,8 @@ export interface CurrentUserResponse {
   pid: string;
   name: string;
   email: string;
+  is_staff: boolean;
+  is_superuser: boolean;
 }
 
 export interface AuthState {

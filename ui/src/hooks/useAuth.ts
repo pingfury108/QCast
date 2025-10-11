@@ -33,8 +33,9 @@ export function useLogin() {
     },
     onError: (error: any) => {
       console.error('登录失败:', error);
-      const message = error.response?.data?.message || '登录失败，请检查邮箱和密码';
-      toast.error(message);
+      // 移除 toast 错误消息，让登录页面自己处理错误显示
+      // const message = error.response?.data?.message || '登录失败，请检查邮箱和密码';
+      // toast.error(message);
     },
   });
 }

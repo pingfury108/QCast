@@ -30,10 +30,15 @@ api.interceptors.response.use(
   (error) => {
     // 处理认证错误 - Loco 没有刷新令牌，直接跳转登录
     if (error.response?.status === 401) {
-      // 清除本地存储的认证信息
-      clearAuthState();
-      // 跳转到登录页
-      window.location.href = '/login';
+      // 检查是否是登录请求，如果是则不自动跳转
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+      if (!isLoginRequest) {
+        // 清除本地存储的认证信息
+        clearAuthState();
+        // 跳转到登录页
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

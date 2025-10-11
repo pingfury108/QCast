@@ -8,6 +8,8 @@ pub struct LoginResponse {
     pub pid: String,
     pub name: String,
     pub is_verified: bool,
+    pub is_staff: bool,
+    pub is_superuser: bool,
 }
 
 impl LoginResponse {
@@ -18,6 +20,8 @@ impl LoginResponse {
             pid: user.pid.to_string(),
             name: user.name.clone(),
             is_verified: user.email_verified_at.is_some(),
+            is_staff: user.is_staff,
+            is_superuser: user.is_superuser,
         }
     }
 }
@@ -27,6 +31,8 @@ pub struct CurrentResponse {
     pub pid: String,
     pub name: String,
     pub email: String,
+    pub is_staff: bool,
+    pub is_superuser: bool,
 }
 
 impl CurrentResponse {
@@ -36,6 +42,8 @@ impl CurrentResponse {
             pid: user.pid.to_string(),
             name: user.name.clone(),
             email: user.email.clone(),
+            is_staff: user.is_staff,
+            is_superuser: user.is_superuser,
         }
     }
 }
