@@ -10,6 +10,7 @@ import {
   FolderKanban,
   LogOut,
   Home,
+  Settings,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
@@ -26,6 +27,7 @@ const adminNavigation = [
   { name: '仪表盘', href: '/admin', icon: LayoutDashboard },
   { name: '用户管理', href: '/admin/users', icon: Users },
   { name: '用户组管理', href: '/admin/groups', icon: FolderKanban },
+  { name: '站点设置', href: '/admin/settings', icon: Settings },
 ];
 
 // Admin 布局组件

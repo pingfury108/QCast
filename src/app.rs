@@ -69,6 +69,7 @@ impl Hooks for App {
         tasks.register(tasks::change_user_password::ChangeUserPassword);
         tasks.register(tasks::set_admin_status::SetAdminStatus);
         tasks.register(tasks::list_admins::ListAdmins);
+        tasks.register(tasks::regenerate_media_urls::RegenerateMediaUrls);
         // tasks-inject (do not remove)
     }
     async fn truncate(ctx: &AppContext) -> Result<()> {

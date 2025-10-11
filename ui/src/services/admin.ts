@@ -6,9 +6,8 @@ import type {
   Group,
   GroupWithMembers,
   GroupDetailResponse,
-  LoginRequest,
-  LoginResponse,
 } from '../types/admin';
+import type { SiteSettings, UpdateSiteSettingsRequest } from '../types/settings';
 
 // 管理后台 API 客户端 - 使用 Vite 代理
 const adminApi = axios.create({
@@ -108,6 +107,23 @@ export const adminGroupApi = {
   delete: deleteGroup,
 };
 
+// ========== 站点设置 API ==========
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  const response = await adminApi.get<SiteSettings>('/site-settings');
+  return response.data;
+}
+
+export async function updateSiteSettings(data: UpdateSiteSettingsRequest): Promise<SiteSettings> {
+  const response = await adminApi.put<SiteSettings>('/site-settings', data);
+  return response.data;
+}
+
+export const adminSettingsApi = {
+  get: getSiteSettings,
+  update: updateSiteSettings,
+};
+
 // 重新导出类型（仅管理相关的）
 export type {
   UserListResponse,
@@ -115,6 +131,8 @@ export type {
   Group,
   GroupWithMembers,
   GroupDetailResponse,
+  SiteSettings,
+  UpdateSiteSettingsRequest,
 };
 
 export default adminApi;

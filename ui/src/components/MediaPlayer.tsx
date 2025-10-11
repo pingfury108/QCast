@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Play, Pause, Volume2, VolumeX, X, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Media } from '../services/medias'
 
@@ -12,15 +11,8 @@ interface MediaPlayerProps {
 }
 
 export function MediaPlayer({ media, onClose, isOpen }: MediaPlayerProps) {
-  const [playing, setPlaying] = useState(false)
-  const [volume, setVolume] = useState(0.8)
-  const [muted, setMuted] = useState(false)
-  const [played, setPlayed] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [seeking, setSeeking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const playerRef = useRef<HTMLAudioElement | HTMLVideoElement>(null)
 
   // 直接使用媒体URL（stream_media端点已取消认证要求）
@@ -32,11 +24,7 @@ export function MediaPlayer({ media, onClose, isOpen }: MediaPlayerProps) {
 
       setMediaUrl(streamUrl)
       // 重置状态
-      setDuration(0)
-      setPlayed(0)
-      setPlaying(false)
       setError(null)
-      setLoading(false) // 直接设为false，不显示加载状态
     }
   }, [media.id, isOpen])
 
@@ -47,119 +35,18 @@ export function MediaPlayer({ media, onClose, isOpen }: MediaPlayerProps) {
 
     console.log('设置媒体事件监听器，URL:', mediaUrl)
 
-    const handleLoadedMetadata = () => {
-      console.log('媒体元数据加载完成，时长:', player.duration)
-      if (player.duration && player.duration > 0) {
-        setDuration(player.duration)
-      }
-    }
-
-    const handleTimeUpdate = () => {
-      if (player.duration && player.duration > 0) {
-        setPlayed(player.currentTime / player.duration)
-      }
-    }
-
-    const handleEnded = () => {
-      setPlaying(false)
-    }
-
     const handleError = (e: Event) => {
       console.error('媒体播放错误:', e)
       setError('播放出错')
-      setPlaying(false)
     }
 
     // 只监听关键事件
-    player.addEventListener('loadedmetadata', handleLoadedMetadata)
-    player.addEventListener('timeupdate', handleTimeUpdate)
-    player.addEventListener('ended', handleEnded)
     player.addEventListener('error', handleError)
 
-    // 延迟检查，给浏览器时间解析媒体
-    const checkTimer = setTimeout(() => {
-      if (player.duration && player.duration > 0) {
-        console.log('延迟检查发现时长:', player.duration)
-        setDuration(player.duration)
-      } else {
-        console.log('延迟检查未发现时长，使用数据库值:', media.duration)
-        if (media.duration && media.duration > 0) {
-          setDuration(media.duration as number)
-        }
-      }
-    }, 1000)
-
     return () => {
-      player.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      player.removeEventListener('timeupdate', handleTimeUpdate)
-      player.removeEventListener('ended', handleEnded)
       player.removeEventListener('error', handleError)
-      clearTimeout(checkTimer)
     }
   }, [mediaUrl, media.duration])
-
-  const handlePlayPause = () => {
-    const player = playerRef.current
-    if (!player) return
-
-    if (playing) {
-      player.pause()
-    } else {
-      player.play().catch(err => {
-        console.error('播放失败:', err)
-        setError('播放失败')
-      })
-    }
-    setPlaying(!playing)
-  }
-
-  const handleSeekChange = (value: number[]) => {
-    setPlayed(value[0])
-    setSeeking(true)
-  }
-
-  const handleSeekMouseUp = (value: number[]) => {
-    const player = playerRef.current
-    if (!player) return
-
-    setSeeking(false)
-    const newTime = value[0] * player.duration
-    if (!isNaN(newTime) && isFinite(newTime)) {
-      player.currentTime = newTime
-    }
-  }
-
-  const handleVolumeChange = (value: number[]) => {
-    const player = playerRef.current
-    if (!player) return
-
-    setVolume(value[0])
-    player.volume = value[0]
-  }
-
-  const handleMute = () => {
-    const player = playerRef.current
-    if (!player) return
-
-    setMuted(!muted)
-    player.muted = !muted
-  }
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds) || seconds < 0) {
-      return '0:00'
-    }
-
-    const totalSeconds = Math.floor(seconds)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const secs = totalSeconds % 60
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`
-  }
 
   const downloadMedia = () => {
     if (mediaUrl) {

@@ -1,14 +1,12 @@
 import { memo, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useCurrentUser } from '../hooks/useAuth'
-import { useAuthState } from '../hooks/useAuthState'
 
 interface DashboardLayoutProps {
   children: ReactNode
 }
 
 const DashboardLayoutComponent = ({ children }: DashboardLayoutProps) => {
-  const { user } = useAuthState();
   const { data: currentUser, isError } = useCurrentUser();
 
   // 当获取到新的用户信息时，更新本地存储

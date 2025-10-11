@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::models::_entities::books;
 use crate::models::_entities::chapters;
 use crate::models::_entities::medias::{ActiveModel, Column, Entity, Model};
-use crate::models::users;
+use crate::models::{site_settings, users};
 use crate::services::audio_metadata::AUDIO_METADATA_SERVICE;
 use crate::services::qrcode::QRCODE_SERVICE;
 use crate::services::storage::StorageService;
@@ -25,6 +25,13 @@ async fn load_item(ctx: &AppContext, id: i32, user_id: i32) -> Result<Model> {
         .one(&ctx.db)
         .await?;
     item.ok_or_else(|| Error::NotFound)
+}
+
+/// 获取站点URL（从数据库设置）
+async fn get_site_url(ctx: &AppContext) -> Result<String> {
+    const DEFAULT_SITE_URL: &str = "http://localhost:5150";
+    let settings = site_settings::Model::get_or_create(&ctx.db, DEFAULT_SITE_URL).await?;
+    Ok(settings.site_url)
 }
 
 /// 获取当前用户的所有媒体，支持按 `book_id` 过滤
@@ -556,6 +563,9 @@ pub async fn upload(
     // 生成访问令牌
     let access_token = Uuid::new_v4().to_string();
 
+    // 获取站点URL
+    let site_url = get_site_url(&ctx).await?;
+
     // 创建媒体记录（使用原始文件信息）
     let media = ActiveModel {
         user_id: Set(user.id),
@@ -570,8 +580,8 @@ pub async fn upload(
         mime_type: Set(Some(content_type.clone())),
         access_token: Set(access_token.clone()),
         access_url: Set(Some(format!(
-            "{}/public/media/{}",
-            ctx.config.server.full_url(),
+            "{}/public/{}",
+            site_url.trim_end_matches('/'),
             access_token
         ))),
         qr_code_path: Set(None),
@@ -894,10 +904,14 @@ pub async fn regenerate_qrcode(
     active_model.qr_code_path = Set(Some(qrcode_relative_path.clone()));
     let _updated_media = active_model.update(&ctx.db).await?;
 
+    // 获取站点URL
+    let site_url = get_site_url(&ctx).await?;
+
     format::json(serde_json::json!({
         "qrcode_path": qrcode_relative_path,
-        "qrcode_url": format!("{}{qrcode_relative_path}",
-            ctx.config.server.full_url().trim_end_matches('/')
+        "qrcode_url": format!("{}{}",
+            site_url.trim_end_matches('/'),
+            qrcode_relative_path
         )
     }))
 }

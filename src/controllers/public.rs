@@ -199,7 +199,7 @@ async fn serve_full_file(file_path: &str, mime_type: &Option<String>) -> Result<
 
 pub fn routes() -> Routes {
     Routes::new()
-        .prefix("/public/media")
+        .prefix("/api/public/media")
         .add("/{access_token}", get(get_media))
         .add("/{access_token}/info", get(get_media_info))
 }

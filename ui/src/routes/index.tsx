@@ -17,6 +17,7 @@ import { ProtectedRoute as AdminProtectedRoute } from '../components/admin/Prote
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage';
 import { AdminGroupsPage } from '../pages/admin/AdminGroupsPage';
+import { AdminSettingsPage } from '../pages/admin/AdminSettingsPage';
 
 // 创建路由配置
 export const router = createBrowserRouter([
@@ -113,6 +114,14 @@ export const router = createBrowserRouter([
         element: (
           <AdminProtectedRoute>
             <AdminGroupsPage />
+          </AdminProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/settings',
+        element: (
+          <AdminProtectedRoute>
+            <AdminSettingsPage />
           </AdminProtectedRoute>
         ),
       },

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -28,7 +27,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import type { User } from '@/types/auth';
 import type { Group } from '@/services/admin';
 import { adminGroupApi, adminUserApi } from '@/services/admin';
 import { FolderKanban, Plus, Trash2, Users, UserPlus, UserMinus } from 'lucide-react';

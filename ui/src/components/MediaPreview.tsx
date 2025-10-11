@@ -1,18 +1,15 @@
 import React, { useState } from 'react'
 import { FolderOpen, Music, Video, Play, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MediaPlayer } from './MediaPlayer'
 import { useChapterMedias } from '../hooks/useMedias'
 import type { Media } from '../services/medias'
 import type { ChapterTree } from '../hooks/useChapters'
 
 interface MediaPreviewProps {
-  bookId: number
   chapters: ChapterTree[]
   onChapterSelect?: (chapter: ChapterTree) => void
 }
@@ -179,11 +176,11 @@ function ChapterSidebar({
   )
 }
 
-export function MediaPreview({ bookId, chapters, onChapterSelect }: MediaPreviewProps) {
+export function MediaPreview({ chapters, onChapterSelect }: MediaPreviewProps) {
   const [selectedChapter, setSelectedChapter] = useState<ChapterTree | null>(null)
   const [selectedMedia, setSelectedMedia] = useState<Media | null>(null)
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
-  const [chapterMediaCounts, setChapterMediaCounts] = useState<Record<number, number>>({})
+  const [chapterMediaCounts] = useState<Record<number, number>>({})
 
   // 使用hook获取章节媒体
   const { data: chapterMedias = [], isLoading, error } = useChapterMedias(

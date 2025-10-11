@@ -1009,7 +1009,6 @@ export default function BookDetailPage() {
           {/* Preview Tab */}
           <TabsContent value="preview" className="h-[calc(100vh-200px)]">
             <MediaPreview
-              bookId={book.id}
               chapters={chapterTree}
               onChapterSelect={(chapter) => {
                 console.log('Selected chapter:', chapter)

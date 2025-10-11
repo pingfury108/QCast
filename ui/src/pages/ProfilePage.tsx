@@ -1,5 +1,5 @@
 import { useAuthState } from '../hooks/useAuthState'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { User, Mail } from 'lucide-react'
 import { Label } from '@/components/ui/label'

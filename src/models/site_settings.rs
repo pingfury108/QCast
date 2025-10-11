@@ -22,9 +22,12 @@ impl Model {
         }
 
         // 如果不存在，创建默认设置
+        let now = chrono::Utc::now();
         let settings = site_settings::ActiveModel {
+            id: ActiveValue::Set(1),
             site_url: ActiveValue::Set(default_url.to_string()),
-            ..Default::default()
+            created_at: ActiveValue::Set(now.into()),
+            updated_at: ActiveValue::Set(now.into()),
         }
         .insert(db)
         .await?;

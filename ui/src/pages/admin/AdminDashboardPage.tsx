@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { adminUserApi, adminGroupApi } from '@/services/admin';
-import { Users, Shield, FolderKanban } from 'lucide-react';
+import { Users, Shield, FolderKanban, Settings } from 'lucide-react';
 import { useAuthState } from '@/hooks/useAuthState';
 import { Link } from 'react-router-dom';
 
@@ -115,6 +115,21 @@ export function AdminDashboardPage() {
                   <p className="font-medium text-lg">管理用户组</p>
                   <p className="text-sm text-gray-600">
                     创建和管理用户组
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/admin/settings"
+                className="flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-gray-50 hover:shadow-sm"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
+                  <Settings className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-lg">站点设置</p>
+                  <p className="text-sm text-gray-600">
+                    配置系统基本设置
                   </p>
                 </div>
               </Link>

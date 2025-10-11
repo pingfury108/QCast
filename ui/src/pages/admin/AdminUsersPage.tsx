@@ -30,7 +30,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import type { User } from '@/types/auth';
 import { adminUserApi } from '@/services/admin';
-import { MoreHorizontal, Search, Shield, User as UserIcon, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Search, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PermissionGate } from '@/components/admin/PermissionGate';
 import { Alert, AlertDescription } from '@/components/ui/alert';

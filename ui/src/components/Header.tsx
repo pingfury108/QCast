@@ -19,9 +19,6 @@ export default function Header({ variant = 'public' }: HeaderProps) {
     navigate('/login');
   };
 
-  // 获取当前用户
-  const currentUser = user;
-
   if (variant === 'public') {
     return (
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

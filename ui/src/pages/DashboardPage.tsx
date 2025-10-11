@@ -6,8 +6,8 @@ import { zhCN } from 'date-fns/locale'
 
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats()
-  const { data: topMediasData, isLoading: topLoading, error: topError } = useTopMedias()
-  const { data: recentMediasData, isLoading: recentLoading, error: recentError } = useRecentMedias()
+  const { data: topMediasData, isLoading: topLoading } = useTopMedias()
+  const { data: recentMediasData, isLoading: recentLoading } = useRecentMedias()
 
   // 确保数据是数组
   const topMedias = Array.isArray(topMediasData) ? topMediasData : []
