@@ -338,7 +338,9 @@ export function AdminGroupsPage() {
               <Button
                 variant="destructive"
                 onClick={() => {
-                  setDeletingGroup(selectedGroup);
+                  if (selectedGroup) {
+                    setDeletingGroup(selectedGroup);
+                  }
                   setSelectedGroup(null);
                 }}
               >

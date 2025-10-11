@@ -10,26 +10,21 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuthState();
+  const { user } = useAuthState();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-sm text-muted-foreground">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+  console.log('AdminProtectedRoute - 当前用户:', user);
+  console.log('AdminProtectedRoute - is_staff:', user?.is_staff);
+  console.log('AdminProtectedRoute - is_superuser:', user?.is_superuser);
 
   // 如果用户未登录，跳转到登录页面
   if (!user) {
+    console.log('AdminProtectedRoute - 用户未登录，跳转到登录页');
     return <Navigate to="/login" replace />;
   }
 
   // 如果用户已登录但没有管理员权限，显示权限不足页面
   if (!user.is_staff && !user.is_superuser) {
+    console.log('AdminProtectedRoute - 用户无管理员权限，显示权限不足页面');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="w-full max-w-md">

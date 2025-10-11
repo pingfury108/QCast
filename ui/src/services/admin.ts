@@ -20,7 +20,7 @@ const adminApi = axios.create({
 
 // 请求拦截器：添加 token
 adminApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token');
+  const token = localStorage.getItem('qcast_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -33,8 +33,9 @@ adminApi.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // 未授权，清除 token 并跳转到登录页
-      localStorage.removeItem('admin_token');
-      window.location.href = '/admin/login';
+      localStorage.removeItem('qcast_token');
+      localStorage.removeItem('qcast_user');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

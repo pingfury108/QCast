@@ -11,25 +11,57 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: authService.login,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('登录成功，响应数据:', data);
 
-      // 直接使用登录接口返回的信息
-      const user: User = {
-        pid: data.pid,
-        name: data.name,
-        email: '', // 登录接口不返回邮箱，后续通过 getCurrentUser 获取
-      };
+      try {
+        // 登录后立即获取完整用户信息，确保包含最新的权限信息
+        const currentUser = await authService.getCurrentUser();
+        console.log('登录后获取的完整用户信息:', currentUser);
 
-      // 保存认证信息
-      saveAuthState(data.token, user);
-      console.log('认证信息已保存:', { token: data.token.substring(0, 20) + '...', user });
+        // 使用 getCurrentUser 的响应创建完整的用户对象
+        const user: User = {
+          id: 0, // 如果后端不返回id，保持为0
+          pid: currentUser.pid,
+          name: currentUser.name,
+          email: currentUser.email,
+          is_staff: currentUser.is_staff,
+          is_superuser: currentUser.is_superuser,
+          email_verified_at: null, // 这个信息在 current 接口中也没有
+          created_at: '',
+          updated_at: '',
+        };
 
-      toast.success('登录成功！');
+        // 保存认证信息
+        saveAuthState(data.token, user);
+        console.log('认证信息已保存:', { token: data.token.substring(0, 20) + '...', user });
 
-      // 直接跳转，不使用延迟
-      console.log('开始跳转到 dashboard...');
-      navigate('/dashboard');
+        toast.success('登录成功！');
+        console.log('开始跳转到 dashboard...');
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('登录后获取用户信息失败，使用登录响应数据:', error);
+
+        // 如果获取用户信息失败，使用登录响应的数据作为降级方案
+        const user: User = {
+          id: 0,
+          pid: data.pid,
+          name: data.name,
+          email: '',
+          is_staff: data.is_staff,
+          is_superuser: data.is_superuser,
+          email_verified_at: null,
+          created_at: '',
+          updated_at: '',
+        };
+
+        saveAuthState(data.token, user);
+        console.log('使用登录数据保存认证信息:', { token: data.token.substring(0, 20) + '...', user });
+
+        toast.success('登录成功！');
+        console.log('开始跳转到 dashboard...');
+        navigate('/dashboard');
+      }
     },
     onError: (error: any) => {
       console.error('登录失败:', error);
@@ -146,20 +178,30 @@ export function useCurrentUser() {
     queryKey: ['currentUser', authState.token], // 将 token 加入依赖
     queryFn: async () => {
       try {
+        const { user: storedUser } = getStoredAuthState();
         const currentUser = await authService.getCurrentUser();
 
-        // 更新本地存储的用户信息
-        const user = {
+        console.log('getCurrentUser API 响应:', currentUser);
+        console.log('存储中的用户信息:', storedUser);
+
+        // 更新本地存储的用户信息，包含管理员权限
+        const user: User = {
+          id: storedUser?.id || 0, // 保持原有的 id
           pid: currentUser.pid,
           name: currentUser.name,
           email: currentUser.email,
+          is_staff: currentUser.is_staff,
+          is_superuser: currentUser.is_superuser,
+          email_verified_at: storedUser?.email_verified_at || null,
+          created_at: storedUser?.created_at || '',
+          updated_at: storedUser?.updated_at || '',
         };
 
-        const { user: storedUser } = getStoredAuthState();
-        if (storedUser && storedUser.pid === user.pid) {
-          // 只有当 PID 匹配时才更新
-          localStorage.setItem('qcast_user', JSON.stringify(user));
-        }
+        console.log('即将保存的用户信息:', user);
+
+        // 更新本地存储的用户信息
+        localStorage.setItem('qcast_user', JSON.stringify(user));
+        console.log('用户信息已更新到 localStorage');
 
         return currentUser;
       } catch (error) {
@@ -167,7 +209,7 @@ export function useCurrentUser() {
         return null;
       }
     },
-    enabled: authState.isAuthenticated && !!authState.token, // 更严格的条件
+    enabled: true, // 启用自动更新以确保用户信息是最新的
     staleTime: 10 * 60 * 1000, // 10 分钟，减少请求频率
     retry: 1, // 减少重试次数
     refetchOnWindowFocus: false, // 窗口聚焦时不自动刷新

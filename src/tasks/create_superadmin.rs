@@ -15,8 +15,34 @@ impl Task for CreateSuperadmin {
 
     async fn run(&self, app_context: &AppContext, vars: &task::Vars) -> Result<()> {
         // 从命令行参数获取邮箱、密码和名称
-        let email = vars.cli_arg("email")?;
-        let password = vars.cli_arg("password")?;
+        let email = match vars.cli_arg("email") {
+            Ok(email) => email,
+            Err(_) => {
+                println!("❌ 缺少必需参数: email");
+                println!();
+                println!("📖 使用方法:");
+                println!("   cargo loco task create_superadmin email:<邮箱> password:<密码> [name:<名称>]");
+                println!();
+                println!("💡 示例:");
+                println!("   cargo loco task create_superadmin email:admin@example.com password:Admin123 name:\"系统管理员\"");
+                return Err(Error::Message("缺少必需参数: email".to_string()));
+            }
+        };
+
+        let password = match vars.cli_arg("password") {
+            Ok(password) => password,
+            Err(_) => {
+                println!("❌ 缺少必需参数: password");
+                println!();
+                println!("📖 使用方法:");
+                println!("   cargo loco task create_superadmin email:<邮箱> password:<密码> [name:<名称>]");
+                println!();
+                println!("💡 示例:");
+                println!("   cargo loco task create_superadmin email:admin@example.com password:Admin123 name:\"系统管理员\"");
+                return Err(Error::Message("缺少必需参数: password".to_string()));
+            }
+        };
+
         let default_name = "Super Admin".to_string();
         let name = vars.cli_arg("name").unwrap_or(&default_name);
 
